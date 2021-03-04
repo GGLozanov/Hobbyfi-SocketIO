@@ -1,0 +1,27 @@
+{
+  "name": "hobbyfi-socketio",
+  "version": "1.0.0",
+  "description": "SocketIO client acting as a secondary server and helper to the PHP REST API for use in realtime communication and synchronization alongside Firebase Cloud Messaging in all provided clients",
+  "main": "hobbyfi-socketio/entrypoint/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GGLozanov/Hobbyfi-SocketIO.git"
+  },
+  "author": "GGLozanov",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "bugs": {
+    "url": "https://github.com/GGLozanov/Hobbyfi-SocketIO/issues"
+  },
+  "homepage": "https://github.com/GGLozanov/Hobbyfi-SocketIO#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "express": "^4.17.1",
+    "firebase-admin": "^9.5.0",
+    "jsonwebtoken": "^8.5.1",
+    "socket.io": "^3.1.2",
+    "typescript": "^4.2.2"
+  }
+}
