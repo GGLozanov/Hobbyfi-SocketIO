@@ -35,7 +35,7 @@ module SocketEventHandler {
     const onCreateMessage = (message: { id: number,
         message: string, create_time: string,
         chatroom_sent_id: number, user_sent_id?: number
-    }) => {
+    }, idToDeviceToken: Map<number, string>) => {
         let user = userManager.findUserByRoomId(message.chatroom_sent_id);
         console.log(`user found on CREATE_MESSAGE socket event handler: ${user}`);
 
@@ -46,7 +46,7 @@ module SocketEventHandler {
     const onEditMessage = (editFields: { id: number;
         message: string; create_time?: string;
         user_sent_id?: number; chatroom_sent_id: number
-    }) => {
+    }, idToDeviceToken: Map<number, string>) => {
         let user = userManager.findUser(editFields.user_sent_id);
         console.log(`user found on EDIT_MESSAGE socket event handler: ${user}`);
 
@@ -56,7 +56,7 @@ module SocketEventHandler {
 
     const onDeleteMessage = (deletePayload: { deletedId: number;
         chatroom_sent_id: number; user_sent_id: number;
-    }) => {
+    }, idToDeviceToken: Map<number, string>) => {
         let user = userManager.findUser(deletePayload.user_sent_id);
         console.log(`user found on EDIT_MESSAGE socket event handler: ${user}`);
 
