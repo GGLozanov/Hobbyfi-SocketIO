@@ -1,0 +1,1 @@
+export function stringWithSocketRoomPrefix(src: string) { return 'chatroom_' + src; }

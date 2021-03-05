@@ -1,6 +1,9 @@
+import SocketEvents from "../config/events";
+import SocketEventHandler from "../handler/socket_event";
 
 const app = require('express')();
 const http = require('http').createServer(app);
+
 export const io = require('socket.io')(http);
 
 const formUrlEncodedParser = app.urlencoded({ extended: true });
@@ -17,7 +20,7 @@ app.post('/receive_server_message', (req, res) => {
     const content = req.body;
     console.log('message received from server: ' + content.msg);
 
-    // res.end('ok');
+    SocketEventHandler.socketEventResolutionMapper(req.body.type);
 });
 
 http.listen(3000, () => {
