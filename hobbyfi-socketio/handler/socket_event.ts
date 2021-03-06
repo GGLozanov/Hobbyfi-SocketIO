@@ -1,24 +1,14 @@
-import { stringWithSocketRoomPrefix } from "../utils/converters";
+import {messaging} from "firebase-admin/lib/messaging";
+import DataMessagePayload = messaging.DataMessagePayload;
 
+const SocketUser = require('../model/socket_user.ts').SocketUser;
+const stringWithSocketRoomPrefix = require('../utils/converters');
+const io = require('../entrypoint/routing');
+const fcm = require('../config/firebase_config');
 const userManager = require('./user_manager');
-
-module SocketEvents {
-    export const createMessageType = 'CREATE_MESSAGE';
-    export const editMessageType = 'EDIT_MESSAGE';
-    export const deleteMessageType = 'DELETE_MESSAGE';
-    export const userJoinType = 'JOIN_USER';
-    export const userLeaveType = 'LEAVE_USER';
-    export const userEditType = 'USER_EDIT';
-    export const deleteChatroomType = 'DELETE_CHATROOM';
-    export const editChatroomType = 'EDIT_CHATROOM';
-    export const eventCreateType = 'EVENT_CREATE';
-    export const eventEditType = 'EVENT_EDIT';
-    export const eventDeleteType = 'EVENT_DELETE';
-    export const eventDeleteBatchType = 'EVENT_DELETE_BATCH';
-}
+const SocketEvents = require('../config/events');
 
 module SocketEventHandler {
-    // TODO:
     // in reality, these closures can be defined and abstracted away (with different arguments/impl.) in 7 steps:
     // 1) find the user socket for the notification (whether by room id, user id, etc.)
     // 2) have a source for the chatroom ID - doesn't matter how
@@ -31,56 +21,89 @@ module SocketEventHandler {
     // models get JSON-ified either way; no point in making them separate model classes for now
     // also because it'd be tedious
 
-    // TODO: Handle user not being in socket clients anymore (emit to all)
-    const onCreateMessage = (message: { id: number,
-        message: string, create_time: string,
-        chatroom_sent_id: number, user_sent_id?: number
-    }, idToDeviceToken: Map<number, string>) => {
-        let user = userManager.findUserByRoomId(message.chatroom_sent_id);
-        console.log(`user found on CREATE_MESSAGE socket event handler: ${user}`);
+    import MessagingDevicesResponse = messaging.MessagingDevicesResponse;
 
-        user.socket.to(stringWithSocketRoomPrefix(message.chatroom_sent_id.toString()))
-            .emit(SocketEvents.createMessageType, message);
+    function stringifyObjectProps(object: { [key: string]: any }): DataMessagePayload {
+        Object.keys(object).forEach(function(key) {
+            object[key] = typeof object[key] == 'object' ? JSON.stringify(object[key]) : String(object[key]);
+        });
+        return <DataMessagePayload>object;
     }
 
-    const onEditMessage = (editFields: { id: number;
+    function getDisconnectedUsersDeviceTokens(idToDeviceToken: Map<number, string>) {
+        const socketUserIds = userManager.users.map((user: typeof SocketUser) => user.id);
+        return new Map(
+            Array.from(idToDeviceToken).filter(([id, _]) => id !in socketUserIds)
+        );
+    }
+
+    function emitEventOnSenderConnection(roomId: number, event: string, message: object, sender?: typeof SocketUser) {
+        if(!sender || !sender.socket.connected) {
+            io.to(stringWithSocketRoomPrefix(roomId.toString()))
+                .emit(event, message);
+        } else {
+            sender.socket.to(stringWithSocketRoomPrefix(roomId.toString()))
+                .emit(event, message);
+        }
+    }
+
+    function handleFCMAndEventEmissionForData(idToDeviceToken: Map<number, string>, event: string,
+                                              data: object, userRequestId: number, roomId: number) {
+        fcm.sendToDevice(Array.from(getDisconnectedUsersDeviceTokens(idToDeviceToken).values()),
+            { data: stringifyObjectProps(data) }).then((r: MessagingDevicesResponse) => {
+            console.log(`FCM for event ${event} failure & success count. F: ${r.failureCount}; S: ${r.successCount}`);
+            let user = userManager.findUser(userRequestId);
+            console.log(`user found on ${event} socket event handler: ${user}`);
+
+            // emit socket event to the rest
+            emitEventOnSenderConnection(roomId, event, data, user);
+        });
+    }
+
+    const onCreateMessage = (message: { type: string; id: number;
+        message: string; create_time: string;
+        chatroom_sent_id: number; user_sent_id?: number
+    }, idToDeviceToken: Map<number, string>, userRequestId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.createMessageType,
+            message, userRequestId, message.chatroom_sent_id);
+
+    const onEditMessage = (editFields: { type: string; id: number;
         message: string; create_time?: string;
         user_sent_id?: number; chatroom_sent_id: number
-    }, idToDeviceToken: Map<number, string>) => {
-        let user = userManager.findUser(editFields.user_sent_id);
-        console.log(`user found on EDIT_MESSAGE socket event handler: ${user}`);
+    }, idToDeviceToken: Map<number, string>, userRequestId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.editMessageType,
+            editFields, userRequestId, editFields.chatroom_sent_id);
 
-        user.socket.to(stringWithSocketRoomPrefix(editFields.chatroom_sent_id.toString()))
-            .emit(SocketEvents.editMessageType, editFields)
-    }
-
-    const onDeleteMessage = (deletePayload: { deletedId: number;
+    const onDeleteMessage = (deletePayload: { type: string; deletedId: number;
         chatroom_sent_id: number; user_sent_id: number;
-    }, idToDeviceToken: Map<number, string>) => {
-        let user = userManager.findUser(deletePayload.user_sent_id);
-        console.log(`user found on EDIT_MESSAGE socket event handler: ${user}`);
-
-        user.socket.to(stringWithSocketRoomPrefix(deletePayload.chatroom_sent_id.toString()))
-            .emit(SocketEvents.deleteMessageType, )
-    }
+    }, idToDeviceToken: Map<number, string>, userRequestId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.deleteMessageType,
+            deletePayload, userRequestId, deletePayload.chatroom_sent_id);
 
     // TODO: Implement
-    const onJoinUser = () => {
+    // TODO: Tags and arrays are passed in as JSON/objects and simply stringified when they need to be sent
+    const onJoinUser = (joinedUser: { type: string; }
+        , idToDeviceToken: Map<number, string>, userRequestId: number) => {
 
     }
 
-    const onLeaveUser = (editFields: { id: number; }) => {
+    const onLeaveUser = (editFields: { type: string; id: number; }
+        , idToDeviceToken: Map<number, string>, userRequestId: number) => {
 
     }
 
-    const onEditUser = () => {
+    const onEditUser = (editFields: { type: string; id: number; }
+        , idToDeviceToken: Map<number, string>, userRequestId: number
+    ) => {
 
     }
 
-    const onCreateEvent = (event: { id: number,
-        name: string, photoUrl: string,
-        startDate: string, date: string, lat: number, long: number,
-        description?: string }) => {
+    const onCreateEvent = (event: { type: string; id: number;
+        name: string; photoUrl: string;
+        startDate: string; date: string;
+        lat: number; long: number;
+        description?: string
+    }, idToDeviceToken: Map<number, string>, userRequestId: number) => {
 
     }
 
@@ -104,7 +127,7 @@ module SocketEventHandler {
 
     }
 
-    const socketEventResolutionMap = {
+    const socketEventResolutionMap: { [event: string]: any } = {
         [SocketEvents.createMessageType]: onCreateMessage,
         [SocketEvents.editMessageType]: onEditMessage,
         [SocketEvents.deleteMessageType]: onDeleteMessage,
@@ -119,12 +142,12 @@ module SocketEventHandler {
         [SocketEvents.eventDeleteBatchType]: onDeleteEventBatch
     };
 
-    export const socketEventResolutionMapper = (event: string) => {
+    export const socketEventResolutionMapper = (event: string): any => {
         if(!(event in socketEventResolutionMap)) {
             throw new TypeError('Invalid event constant passed for socket event resolution mapping!');
         }
 
-        return socketEventResolutionMapper[event];
+        return socketEventResolutionMap[event];
     }
 }
 

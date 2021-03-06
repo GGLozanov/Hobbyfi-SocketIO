@@ -1,15 +1,14 @@
-import Models from "../model/socket_user";
-import SocketUser = Models.SocketUser;
+const SocketUser = require('../model/socket_user.ts').SocketUser;
 import {SocketId} from "socket.io-adapter";
 
 class UserManager {
-    users: SocketUser[] = [];
+    users: typeof SocketUser[] = [];
 
-    constructor(initialUsers: SocketUser[] = []) {
+    constructor(initialUsers: typeof SocketUser[] = []) {
         this.users = initialUsers;
     }
 
-    addUser(user: SocketUser): void {
+    addUser(user: typeof SocketUser): void {
         this.users.push(user);
     }
 
@@ -23,15 +22,15 @@ class UserManager {
         this.users = this.users.filter((user, _) => user.socket.id == id);
     }
 
-    findUser(id: number): SocketUser {
+    findUser(id: number): typeof SocketUser {
         return this.users.find((user, _) => user.id == id);
     }
 
-    findUserBySocketId(id: SocketId): SocketUser {
+    findUserBySocketId(id: SocketId): typeof SocketUser {
         return this.users.find((user, _) => user.socket.id == id);
     }
 
-    findUserByRoomId(id: number): SocketUser {
+    findUserByRoomId(id: number): typeof SocketUser {
         return this.users.find((user, _) => user.roomId == id);
     }
 }

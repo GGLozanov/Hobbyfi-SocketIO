@@ -1,7 +1,8 @@
 import { Socket } from "socket.io";
-import { IdModel } from './id_model';
 
 module Models {
+    const IdModel = require('./id_model').IdModel;
+
     export class SocketUser extends IdModel {
         id: number;
         roomId: number; // i.e. chatroom id
@@ -15,4 +16,4 @@ module Models {
     }
 }
 
-export default Models;
+module.exports = Models;

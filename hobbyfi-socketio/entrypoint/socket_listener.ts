@@ -1,15 +1,16 @@
-import { io } from "./routing";
-import Models from "../model/socket_user";
-import SocketUser = Models.SocketUser;
-import {stringWithSocketRoomPrefix} from "../utils/converters";
+import {Socket} from "socket.io";
+import io from "./routing";
+
+const SocketUser = require('../model/socket_user').SocketUser;
+const stringWithSocketRoomPrefix = require('../utils/converters');
 
 const userManager = require('../handler/user_manager');
 
-io.on('connection', (socket) => {
+export default io.on('connection', (socket: Socket) => {
     console.log('New user connected');
 
     socket.on('connect', () => {
-        socket.sendBuffer = []; // empty send buffer for emissions queued up for offline unavailability
+        // socket.sendBuffer = []; // empty send buffer for emissions queued up for offline unavailability
         // refresh connection should be handled in clients through API refetch
     });
 
@@ -25,6 +26,6 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         userManager.pruneUserBySocketId(socket.id);
 
-        console.log('user disconnected');
+        console.log('User disconnected');
     });
 });

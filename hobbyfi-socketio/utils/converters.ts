@@ -1,1 +1,1 @@
-export function stringWithSocketRoomPrefix(src: string) { return 'chatroom_' + src; }
+module.exports = function stringWithSocketRoomPrefix(src: string) { return 'chatroom_' + src; }
