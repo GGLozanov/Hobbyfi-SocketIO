@@ -16,19 +16,20 @@ app.all('*', require_auth);
 
 app.post('/receive_server_message', (req: Request, res: Response) => {
     const content = req.body;
+    console.log('BODY received from server: ' + content.toString());
     if(!req.is('urlencoded') || !content.type || !content.id_to_device_token) {
         return res.status(400).send('Invalid encoding or missing server message type or missing ID to device token map for FCM!');
     }
-    console.log('BODY received from server: ' + content);
     console.log('message TYPE received from server: ' + content.type);
 
-    socketEventResolutionMapper(content.type)(content, content.id_to_device_token, res.locals.userId);
+    // TODO: id_to_device_token => JSON.parse to somehow convert to Map object???
+    socketEventResolutionMapper(content.type)(content, content.id_to_device_token, res.locals.userId, content.room_id);
 
     return res.status(200).send('Socket event successfully handled');
 });
 
 http.listen(3000, () => {
-    console.log(`listening on ${http.address}`);
+    console.log(`listening on ${http.address.toString()}`);
 });
 
 export default io;

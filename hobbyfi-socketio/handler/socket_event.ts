@@ -1,5 +1,6 @@
 import {messaging} from "firebase-admin/lib/messaging";
 import DataMessagePayload = messaging.DataMessagePayload;
+import flatten from "../utils/flattener";
 
 const SocketUser = require('../model/socket_user.ts').SocketUser;
 const stringWithSocketRoomPrefix = require('../utils/converters');
@@ -30,7 +31,7 @@ module SocketEventHandler {
         return <DataMessagePayload>object;
     }
 
-    function getDisconnectedUsersDeviceTokens(idToDeviceToken: Map<number, string>) {
+    function getDisconnectedUsersDeviceTokens(idToDeviceToken: Map<number, string[]>) {
         const socketUserIds = userManager.users.map((user: typeof SocketUser) => user.id);
         return new Map(
             Array.from(idToDeviceToken).filter(([id, _]) => id !in socketUserIds)
@@ -47,53 +48,71 @@ module SocketEventHandler {
         }
     }
 
-    function handleFCMAndEventEmissionForData(idToDeviceToken: Map<number, string>, event: string,
+    // map is number to string array due to users being able to log in through multiple devices
+    function handleFCMAndEventEmissionForData(idToDeviceToken: Map<number, string[]>, event: string,
                                               data: object, userRequestId: number, roomId: number) {
-        fcm.sendToDevice(Array.from(getDisconnectedUsersDeviceTokens(idToDeviceToken).values()),
-            { data: stringifyObjectProps(data) }).then((r: MessagingDevicesResponse) => {
-            console.log(`FCM for event ${event} failure & success count. F: ${r.failureCount}; S: ${r.successCount}`);
-            let user = userManager.findUser(userRequestId);
-            console.log(`user found on ${event} socket event handler: ${user}`);
+        const disconnectedUsersTokens = flatten(Array.from(getDisconnectedUsersDeviceTokens(idToDeviceToken).values()));
 
-            // emit socket event to the rest
-            emitEventOnSenderConnection(roomId, event, data, user);
-        });
+        if(disconnectedUsersTokens.length > 0) {
+            fcm.sendToDevice(disconnectedUsersTokens,
+                { data: stringifyObjectProps(data) }).then((r: MessagingDevicesResponse) => {
+                console.log(`FCM for event ${event} failure & success count. F: ${r.failureCount}; S: ${r.successCount}`);
+                emitEventToRoom(userRequestId, roomId, event, data);
+            });
+        } else {
+            emitEventToRoom(userRequestId, roomId, event, data);
+        }
+    }
+
+    function emitEventToRoom(userRequestId: number, roomId: number, event: string, data: object) {
+        let user = userManager.findUser(userRequestId);
+        console.log(`user found on ${event} socket event handler: ${user}`);
+
+        // emit socket event to the rest
+        emitEventOnSenderConnection(roomId, event, data, user);
+    }
+
+    function emitEventToRooms(userRequestId: number, roomId: number[], event: string, data: object) {
+        // TODO: Emit to multiple rooms (used by LEAVE_USER and EDIT_USER)
     }
 
     const onCreateMessage = (message: { type: string; id: number;
         message: string; create_time: string;
         chatroom_sent_id: number; user_sent_id?: number
-    }, idToDeviceToken: Map<number, string>, userRequestId: number) =>
+    }, idToDeviceToken: Map<number, string[]>, userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.createMessageType,
-            message, userRequestId, message.chatroom_sent_id);
+            message, userRequestId, roomId);
 
     const onEditMessage = (editFields: { type: string; id: number;
         message: string; create_time?: string;
         user_sent_id?: number; chatroom_sent_id: number
-    }, idToDeviceToken: Map<number, string>, userRequestId: number) =>
+    }, idToDeviceToken: Map<number, string[]>, userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.editMessageType,
-            editFields, userRequestId, editFields.chatroom_sent_id);
+            editFields, userRequestId, roomId);
 
     const onDeleteMessage = (deletePayload: { type: string; deletedId: number;
         chatroom_sent_id: number; user_sent_id: number;
-    }, idToDeviceToken: Map<number, string>, userRequestId: number) =>
+    }, idToDeviceToken: Map<number, string[]>, userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.deleteMessageType,
-            deletePayload, userRequestId, deletePayload.chatroom_sent_id);
+            deletePayload, userRequestId, roomId);
 
     // TODO: Implement
     // TODO: Tags and arrays are passed in as JSON/objects and simply stringified when they need to be sent
     const onJoinUser = (joinedUser: { type: string; }
-        , idToDeviceToken: Map<number, string>, userRequestId: number) => {
+        , idToDeviceToken: Map<number, string[]>, userRequestId: number) => {
 
     }
 
+    // TODO: Handle batch notifications by parsing the chatroom_ids property and translating it to room ids and sending emissions to all rooms with those ids
+
+    // TODO: Handle leave_user being able to have both array of roomids and just a roomid
     const onLeaveUser = (editFields: { type: string; id: number; }
-        , idToDeviceToken: Map<number, string>, userRequestId: number) => {
+        , idToDeviceToken: Map<number, Map<number, string[]>>, userRequestId: number) => {
 
     }
 
     const onEditUser = (editFields: { type: string; id: number; }
-        , idToDeviceToken: Map<number, string>, userRequestId: number
+        , idToDeviceToken: Map<number, string[]>, userRequestId: number, roomIds: number[]
     ) => {
 
     }
@@ -103,7 +122,7 @@ module SocketEventHandler {
         startDate: string; date: string;
         lat: number; long: number;
         description?: string
-    }, idToDeviceToken: Map<number, string>, userRequestId: number) => {
+    }, idToDeviceToken: Map<number, string[]>, userRequestId: number) => {
 
     }
 

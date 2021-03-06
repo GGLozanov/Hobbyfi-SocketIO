@@ -5,6 +5,7 @@ const fs = require('fs');
 const https = require('https');
 
 import { Request, Response } from "express";
+const URL = require('url').URL;
 
 export default (req: Request, res: Response, next: () => void) => {
     const token = req.get('Authorization');
@@ -13,13 +14,15 @@ export default (req: Request, res: Response, next: () => void) => {
     }
 
     try {
-        let payload = jwt.verify(token, fs.readFileSync('../keys/public.pem'), { algorithms: ['RS256'] });
+        let payload = jwt.verify(token, fs.readFileSync(__dirname + '/../keys/public.pem').toString(), { algorithms: ['RS256'] });
 
-        if(!payload || !payload.user_id) {
-            return res.status(401).send('Invalid JWT token payload sent in Authorization header!');
+        console.log(payload);
+        if(!payload || !payload.userId ||
+                fs.readFileSync(__dirname + '/../keys/server_host.txt').toString() != payload.iss) {
+            return res.status(406).send('Invalid JWT token payload sent in Authorization header!');
         }
 
-        res.locals.userId = payload.user_id;
+        res.locals.userId = payload.userId;
         next();
     } catch(err) {
         switch(err.name) {
@@ -27,7 +30,11 @@ export default (req: Request, res: Response, next: () => void) => {
                 return res.status(401).send('JWT sent in Authorization header is expired!');
             }
             case 'JsonWebTokenError': {
-                https.get(`https://graph.facebook.com/v10.0/debug_token?input_token=${token}`, (result: http.IncomingMessage) => {
+                const requestUrl = new URL(`https://graph.facebook.com/v10.0/debug_token?input_token=${token}
+                    &access_token=${fs.readFileSync(__dirname + '/../keys/fb_app_id.txt').toString()}|
+                    ${fs.readFileSync(__dirname + '/../keys/fb_app_secret.txt').toString()}`);
+
+                https.get(requestUrl, (result: http.IncomingMessage) => {
                     console.log('statusCode for facebook GET:', result.statusCode);
                     console.log('headers for facebook GET:', result.headers);
 
@@ -40,13 +47,15 @@ export default (req: Request, res: Response, next: () => void) => {
                     result.on('end', () => {
                         const objOutput = JSON.parse(output);
 
-                        if(objOutput.data.error) {
+                        if(objOutput.error) {
+                            return res.status(400).send(`Failed check for Facebook token! Facebook token request may have been misconfigured!
+                                ${objOutput.error.toString()}`);
+                        } else if(objOutput.data.error) {
                             return res.status(401).send(`Failed check for Facebook token! Facebook token may have not been correct 
-                                or malformed JWT may have been passed! ${objOutput.data.error}`);
+                                or malformed JWT may have been passed! ${objOutput.data.error.toString()}`);
                         }
 
                         res.locals.userId = parseInt(objOutput.data.user_id);
-
                         next();
                     });
                 }).on('error', (error: Error) => {
