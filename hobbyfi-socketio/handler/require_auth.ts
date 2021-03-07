@@ -14,10 +14,11 @@ export default (req: Request, res: Response, next: () => void) => {
     }
 
     try {
-        let payload = jwt.verify(token, fs.readFileSync(__dirname + '/../keys/public.pem').toString(), { algorithms: ['RS256'] });
+        let payload = jwt.verify(token, process.env.publicKeyJwt ||
+            fs.readFileSync(__dirname + '/../keys/public.pem').toString(), { algorithms: ['RS256'] });
 
         if(!payload || !payload.userId ||
-                fs.readFileSync(__dirname + '/../keys/server_host.txt').toString() != payload.iss) {
+                (process.env.serverHost || fs.readFileSync(__dirname + '/../keys/server_host.txt').toString()) != payload.iss) {
             return res.status(406).send('Invalid JWT token payload sent in Authorization header! May not have originated from server!');
         }
 
@@ -30,7 +31,7 @@ export default (req: Request, res: Response, next: () => void) => {
             }
             case 'JsonWebTokenError': {
                 const requestUrl = new URL(`https://graph.facebook.com/v10.0/debug_token?input_token=${token}
-                    &access_token=${fs.readFileSync(__dirname + '/../keys/fb_app_id.txt').toString()}|${fs.readFileSync(__dirname + '/../keys/fb_app_secret.txt').toString()}`);
+                    &access_token=${process.env.fbAppId || fs.readFileSync(__dirname + '/../keys/fb_app_id.txt').toString()}|${process.env.fbAppSecret || fs.readFileSync(__dirname + '/../keys/fb_app_secret.txt').toString()}`);
 
                 https.get(requestUrl, (result: http.IncomingMessage) => {
                     console.log('statusCode for facebook GET:', result.statusCode);

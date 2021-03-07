@@ -20,14 +20,15 @@ const formUrlEncodedParser = express.urlencoded({ extended: true });
 app.use(formUrlEncodedParser);
 app.set('trust proxy', true);
 
-// app.all('*', require_auth);
+app.all('*', require_auth);
 
 app.post('/receive_server_message', (req: Request, res: Response) => {
     const content = req.body;
     console.log('BODY received from server: ' + JSON.stringify(content));
 
     console.log(req.ip);
-    if(fs.readFileSync(__dirname + '/../keys/server_host.txt').toString() != req.ip && req.ip != '::1') {
+    if((process.env.serverHost ||
+            fs.readFileSync(__dirname + '/../keys/server_host.txt').toString()) != req.ip && req.ip != '::1') {
         return res.status(401).send('Invalid remote address for endpoint designed to only be accessible from remote PHP REST server!');
     }
 
