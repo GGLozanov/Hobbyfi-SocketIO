@@ -1,14 +1,14 @@
-const SocketUser = require('../model/socket_user.ts').SocketUser;
 import {SocketId} from "socket.io-adapter";
+import SocketUser from "../model/socket_user";
 
 class UserManager {
-    users: typeof SocketUser[] = [];
+    users: SocketUser[];
 
-    constructor(initialUsers: typeof SocketUser[] = []) {
+    constructor(initialUsers: SocketUser[] = []) {
         this.users = initialUsers;
     }
 
-    addUser(user: typeof SocketUser): void {
+    addUser(user: SocketUser): void {
         this.users.push(user);
     }
 
@@ -22,18 +22,18 @@ class UserManager {
         this.users = this.users.filter((user, _) => user.socket.id == id);
     }
 
-    findUser(id: number): typeof SocketUser {
+    findUser(id: number): SocketUser {
         return this.users.find((user, _) => user.id == id);
     }
 
-    findUserBySocketId(id: SocketId): typeof SocketUser {
-        return this.users.find((user, _) => user.socket.id == id);
+    findUserBySocketId(id: SocketId): SocketUser {
+        return this.users.find((user: SocketUser, _) => user.socket.id == id);
     }
 
-    findUserByRoomId(id: number): typeof SocketUser {
+    findUserByRoomId(id: number): SocketUser {
         return this.users.find((user, _) => user.roomId == id);
     }
 }
 
-const instance = new UserManager();
-export default instance;
+const userManager = new UserManager();
+export default userManager;

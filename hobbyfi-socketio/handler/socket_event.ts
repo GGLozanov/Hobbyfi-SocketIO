@@ -2,11 +2,19 @@ import {messaging} from "firebase-admin/lib/messaging";
 import DataMessagePayload = messaging.DataMessagePayload;
 import flatten from "../utils/flattener";
 
-const SocketUser = require('../model/socket_user.ts').SocketUser;
+// holy shit do I suck at this language
+import SocketUser from "../model/socket_user";
+import IdToken from "../model/id_token";
+import RoomIdToken from "../model/room_id_token";
+import userManager from "../handler/user_manager";
+import io from "../entrypoint/routing";
+import MessageCreate from "../model/message_create";
+import {plainToClass} from "class-transformer";
+import MessageEdit from "../model/message_edit";
+import IdTypeModel from "../model/id_type_model";
+
 const stringWithSocketRoomPrefix = require('../utils/converters');
-const io = require('../entrypoint/routing');
 const fcm = require('../config/firebase_config');
-const userManager = require('./user_manager');
 const SocketEvents = require('../config/events');
 
 module SocketEventHandler {
@@ -31,15 +39,17 @@ module SocketEventHandler {
         return <DataMessagePayload>object;
     }
 
-    function getDisconnectedUsersDeviceTokens(idToDeviceToken: Map<number, string[]>) {
-        const socketUserIds = userManager.users.map((user: typeof SocketUser) => user.id);
-        return new Map(
-            Array.from(idToDeviceToken).filter(([id, _]) => id !in socketUserIds)
-        );
+    function getDisconnectedUsersDeviceTokens(idToDeviceToken: IdToken[]): IdToken[] {
+        const socketUserIds: number[] = userManager.users.map((user: SocketUser) => user.id);
+
+        if(socketUserIds.length > 0) {
+            return idToDeviceToken.filter((idToken: IdToken) => idToken.id !in socketUserIds);
+        } else return idToDeviceToken;
     }
 
-    function emitEventOnSenderConnection(roomId: number, event: string, message: object, sender?: typeof SocketUser) {
+    function emitEventOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
         if(!sender || !sender.socket.connected) {
+            console.log(`SENDING MESSAGE TO SOCKET ROOM ${roomId} WITH MESSAGE: ${JSON.stringify(message)}`);
             io.to(stringWithSocketRoomPrefix(roomId.toString()))
                 .emit(event, message);
         } else {
@@ -49,10 +59,11 @@ module SocketEventHandler {
     }
 
     // map is number to string array due to users being able to log in through multiple devices
-    function handleFCMAndEventEmissionForData(idToDeviceToken: Map<number, string[]>, event: string,
+    function handleFCMAndEventEmissionForData(idToDeviceToken: IdToken[], event: string,
                                               data: object, userRequestId: number, roomId: number) {
-        const disconnectedUsersTokens = flatten(Array.from(getDisconnectedUsersDeviceTokens(idToDeviceToken).values()));
+        const disconnectedUsersTokens = flatten(getDisconnectedUsersDeviceTokens(idToDeviceToken).map((idToken) => idToken.deviceToken));
 
+        console.log(`disconnected user tokens: ${disconnectedUsersTokens}`);
         if(disconnectedUsersTokens.length > 0) {
             fcm.sendToDevice(disconnectedUsersTokens,
                 { data: stringifyObjectProps(data) }).then((r: MessagingDevicesResponse) => {
@@ -72,34 +83,36 @@ module SocketEventHandler {
         emitEventOnSenderConnection(roomId, event, data, user);
     }
 
+    function getDisconnectedUsersRoomDeviceTokens(roomIdToIdAndDeviceToken: RoomIdToken[]): IdToken[][] {
+        return roomIdToIdAndDeviceToken.map((roomIdToken: RoomIdToken) => getDisconnectedUsersDeviceTokens(roomIdToken.idTokens));
+    }
+
     function emitEventToRooms(userRequestId: number, roomId: number[], event: string, data: object) {
         // TODO: Emit to multiple rooms (used by LEAVE_USER and EDIT_USER)
     }
 
-    const onCreateMessage = (message: { type: string; id: number;
-        message: string; create_time: string;
-        chatroom_sent_id: number; user_sent_id?: number
-    }, idToDeviceToken: Map<number, string[]>, userRequestId: number, roomId: number) =>
+    function handleFCMAndEventEmissionForDataToRooms(roomIdToIdAndDeviceToken: RoomIdToken[], event: string,
+                                                     data: object, userRequestId: number, roomId: number) {
+        // TODO: Handle emission to multiple rooms (used by LEAVE_USER and EDIT_USER)
+    }
+
+    const onCreateMessage = (message: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) => {
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.createMessageType,
-            message, userRequestId, roomId);
+            plainToClass(MessageCreate, message, { excludeExtraneousValues: true }), userRequestId, roomId);
+    }
 
-    const onEditMessage = (editFields: { type: string; id: number;
-        message: string; create_time?: string;
-        user_sent_id?: number; chatroom_sent_id: number
-    }, idToDeviceToken: Map<number, string[]>, userRequestId: number, roomId: number) =>
+    const onEditMessage = (editFields: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.editMessageType,
-            editFields, userRequestId, roomId);
+            plainToClass(MessageEdit, editFields, { excludeExtraneousValues: true }), userRequestId, roomId);
 
-    const onDeleteMessage = (deletePayload: { type: string; deletedId: number;
-        chatroom_sent_id: number; user_sent_id: number;
-    }, idToDeviceToken: Map<number, string[]>, userRequestId: number, roomId: number) =>
+    const onDeleteMessage = (deletePayload: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.deleteMessageType,
-            deletePayload, userRequestId, roomId);
+            plainToClass(IdTypeModel, deletePayload, { excludeExtraneousValues: true }), userRequestId, roomId);
 
     // TODO: Implement
     // TODO: Tags and arrays are passed in as JSON/objects and simply stringified when they need to be sent
     const onJoinUser = (joinedUser: { type: string; }
-        , idToDeviceToken: Map<number, string[]>, userRequestId: number) => {
+        , idToDeviceToken: IdToken[], userRequestId: number) => {
 
     }
 
@@ -107,12 +120,17 @@ module SocketEventHandler {
 
     // TODO: Handle leave_user being able to have both array of roomids and just a roomid
     const onLeaveUser = (editFields: { type: string; id: number; }
-        , idToDeviceToken: Map<number, Map<number, string[]>>, userRequestId: number) => {
+        , idToDeviceToken: IdToken[], userRequestId: number) => {
+
+    }
+
+    const onLeaveUserKick = (editFields: { type: string; id: number; }
+        , roomIdToIdAndDeviceToken: RoomIdToken[], userRequestId: number, roomIds: number[]) => {
 
     }
 
     const onEditUser = (editFields: { type: string; id: number; }
-        , idToDeviceToken: Map<number, string[]>, userRequestId: number, roomIds: number[]
+        , roomIdToIdAndDeviceToken: RoomIdToken[], userRequestId: number, roomIds: number[]
     ) => {
 
     }
@@ -122,7 +140,7 @@ module SocketEventHandler {
         startDate: string; date: string;
         lat: number; long: number;
         description?: string
-    }, idToDeviceToken: Map<number, string[]>, userRequestId: number) => {
+    }, idToDeviceToken: IdToken[], userRequestId: number) => {
 
     }
 
@@ -151,7 +169,7 @@ module SocketEventHandler {
         [SocketEvents.editMessageType]: onEditMessage,
         [SocketEvents.deleteMessageType]: onDeleteMessage,
         [SocketEvents.userJoinType]: onJoinUser,
-        [SocketEvents.userLeaveType]: onLeaveUser,
+        [SocketEvents.userLeaveType]: [onLeaveUser, onLeaveUserKick],
         [SocketEvents.userEditType]: onEditUser,
         [SocketEvents.deleteChatroomType]: onDeleteChatroom,
         [SocketEvents.editChatroomType]: onEditChatroom,
@@ -161,7 +179,7 @@ module SocketEventHandler {
         [SocketEvents.eventDeleteBatchType]: onDeleteEventBatch
     };
 
-    export const socketEventResolutionMapper = (event: string): any => {
+    export function socketEventResolutionMapper(event: string): any {
         if(!(event in socketEventResolutionMap)) {
             throw new TypeError('Invalid event constant passed for socket event resolution mapping!');
         }

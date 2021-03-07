@@ -1,7 +1,7 @@
 import {Socket} from "socket.io";
 import io from "./routing";
+import SocketUser from "../model/socket_user";
 
-const SocketUser = require('../model/socket_user').SocketUser;
 const stringWithSocketRoomPrefix = require('../utils/converters');
 
 const userManager = require('../handler/user_manager');

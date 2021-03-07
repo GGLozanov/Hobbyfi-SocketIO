@@ -1,5 +1,8 @@
+import {Expose} from "class-transformer";
+
 module Models {
     export abstract class IdModel {
+        @Expose()
         id: number
 
         protected constructor(id: number) {
@@ -8,4 +11,4 @@ module Models {
     }
 }
 
-module.exports = Models;
+export default Models.IdModel;
