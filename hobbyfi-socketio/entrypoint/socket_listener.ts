@@ -20,7 +20,7 @@ export default io.on('connection', (socket: Socket) => {
         // set SocketUser ID: i.e. socketUser.id = 1; etc. (don't use socket ID because that may interfere w/ Socket.IO)
         // contain a SocketUser list somewhere as well...
         console.log(`join_chatroom event received with data: ${JSON.stringify(data)}`)
-        userManager.addUser(new SocketUser(data.id, data.chatroom_id, socket));
+        userManager.addUserDistinct(new SocketUser(data.id, data.chatroom_id, socket));
 
         socket.join(stringWithSocketRoomPrefix(data.chatroom_id.toString()));
     });
