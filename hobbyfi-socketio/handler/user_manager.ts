@@ -8,8 +8,10 @@ class UserManager {
         this.users = initialUsers;
     }
 
-    addUser(user: SocketUser): void {
-        this.users.push(user);
+    addUserDistinct(user: SocketUser): void {
+        if(this.users.indexOf(user) === -1) {
+            this.users.push(user);
+        }
     }
 
     // ah, filter in lieu of splice - truly the pinnacle of suboptimal performance brought upon by

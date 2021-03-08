@@ -57,7 +57,7 @@ app.post('/receive_server_message', (req: Request, res: Response) => {
     return res.status(200).send('Socket event successfully handled');
 });
 
-http.listen(process.env.PORT || 80, () => {
+http.listen(process.env.PORT || 443, () => {
     console.log(`Listening on ${http.address.toString()}`);
 });
 
