@@ -3,24 +3,71 @@ import require_auth from "../handler/require_auth";
 import { plainToClass } from "class-transformer";
 import SocketEventHandler from "../handler/socket_event";
 import socketEventResolutionMapper = SocketEventHandler.socketEventResolutionMapper;
-import {Server as HttpServer} from "node:http";
-import {Server} from "socket.io";
 import RoomIdToken from "../model/room_id_token";
 import IdToken from "../model/id_token";
+import excludeRoutes from "../utils/route_unless";
+import {Server, Socket} from "socket.io";
+import userManager from "../handler/user_manager";
+import SocketUser from "../model/socket_user";
+import {Server as HttpServer} from "node:http";
 
+const cors = require('cors');
 const fs = require('fs');
 
 const express = require('express');
 const app: Express = express();
+
+const stringWithSocketRoomPrefix = require('../utils/converters');
+
 const http: HttpServer = require('http').createServer(app);
 const io: Server = require('socket.io')(http);
 
 const formUrlEncodedParser = express.urlencoded({ extended: true });
 
 app.use(formUrlEncodedParser);
-app.set('trust proxy', true);
+app.use(cors());
 
-app.all('*', require_auth);
+app.all('*', excludeRoutes(['/test'], require_auth));
+
+io.on('connection', (socket: Socket) => {
+    console.log('New user connected');
+    console.log(`socket connected: ${socket.connected}`);
+    console.log(`socket id: ${socket.id}`);
+    console.log(`sockets all ids: ${Array.from(io.sockets.sockets.keys())}`);
+
+    socket.on("connect", () => {
+        console.log('New user connected [Confirm]');
+        // socket.sendBuffer = []; // empty send buffer for emissions queued up for offline unavailability
+        // refresh connection should be handled in clients through API refetch
+    });
+
+    // receive the id in the form of data IMMEDIATELY after connection
+    // set SocketUser ID: i.e. socketUser.id = 1; etc. (don't use socket ID because that may interfere w/ Socket.IO)
+    // contain a SocketUser list somewhere as well...
+    socket.on('join_chatroom', ({ id, chatroom_id }) => {
+        console.log(`join_chatroom event received with ID: ${id} and chatroom_id: ${chatroom_id}`)
+        userManager.addUserDistinct(new SocketUser(id, chatroom_id, socket));
+
+        socket.join(stringWithSocketRoomPrefix(chatroom_id.toString()));
+    });
+
+    socket.on('disconnect', () => {
+        const user = userManager.pruneUserBySocketId(socket.id);
+        console.log(`user socket LEAVE: ${user}`)
+
+        if(user) {
+            socket.leave(stringWithSocketRoomPrefix(user.roomId.toString()));
+        } else {
+            console.log(`Returned undefined user`)
+        }
+
+        console.log('User disconnected');
+    });
+});
+
+app.get('/test', (req: Request, res: Response) => {
+    res.sendFile('index.html', {  root: __dirname });
+})
 
 app.post('/receive_server_message', (req: Request, res: Response) => {
     const content = req.body;
@@ -57,8 +104,9 @@ app.post('/receive_server_message', (req: Request, res: Response) => {
     return res.status(200).send('Socket event successfully handled');
 });
 
-http.listen(process.env.PORT || 443, () => {
-    console.log(`Listening on ${http.address.toString()}`);
+
+http.listen(process.env.PORT || 3000, () => {
+    console.log(`Listening on ${process.env.PORT || 3000}`);
 });
 
 export default io;

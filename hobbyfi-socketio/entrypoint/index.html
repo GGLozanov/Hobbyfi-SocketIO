@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport">
+    <title>Paint</title>
+    <!-- <script src="/js/application.js"></script> -->
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<header></header>
+<nav></nav>
+<aside>
+    <div id="toolbox"></div>
+    <!-- display: none; by default -->
+    <div id="chat"></div>
+
+    <div class="buttons">
+        <div class="toolBoxButton">Toolbox</div>
+        <div class="chatButton">Chat</div>
+    </div>
+</aside>
+<section></section>
+<footer></footer>
+<script>
+    var socket = io();
+</script>
+</body>
+</html>

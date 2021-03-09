@@ -20,8 +20,13 @@ class UserManager {
         this.users = this.users.filter((user, _) => user.id == id);
     }
 
-    pruneUserBySocketId(id: SocketId): void {
-        this.users = this.users.filter((user, _) => user.socket.id == id);
+    pruneUserBySocketId(id: SocketId): SocketUser {
+        const pruneUserIndex = this.users.findIndex(user => user.socket.id == id);
+
+        if (pruneUserIndex !== -1) {
+            return this.users.splice(pruneUserIndex, 1)[0];
+        }
+        return null;
     }
 
     findUser(id: number): SocketUser {

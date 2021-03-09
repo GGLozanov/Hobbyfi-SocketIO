@@ -50,7 +50,7 @@ export default (req: Request, res: Response, next: () => void) => {
                             return res.status(400).send(`Failed check for Facebook token! Facebook token request may have been misconfigured!`);
                         } else if(objOutput.data.error) {
                             return res.status(401).send(`Failed check for Facebook token! Facebook token may have not been correct 
-                                or malformed JWT may have been passed! ${objOutput.data.error.toString()}`);
+                                or malformed JWT may have been passed!`);
                         }
 
                         res.locals.userId = parseInt(objOutput.data.user_id);
