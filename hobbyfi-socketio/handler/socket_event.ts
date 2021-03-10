@@ -8,10 +8,12 @@ import IdToken from "../model/id_token";
 import RoomIdToken from "../model/room_id_token";
 import userManager from "../handler/user_manager";
 import io from "../entrypoint/routing";
-import MessageCreate from "../model/message_create";
+import Message from "../model/message";
 import {plainToClass} from "class-transformer";
-import MessageEdit from "../model/message_edit";
 import IdTypeModel from "../model/id_type_model";
+import User from "../model/user";
+import Event from "../model/event";
+import Chatroom from "../model/chatroom";
 
 const stringWithSocketRoomPrefix = require('../utils/converters');
 const fcm = require('../config/firebase_config');
@@ -43,13 +45,14 @@ module SocketEventHandler {
         const socketUserIds: number[] = userManager.users.map((user: SocketUser) => user.id);
 
         if(socketUserIds.length > 0) {
-            return idToDeviceToken.filter((idToken: IdToken) => idToken.id !in socketUserIds);
+            return idToDeviceToken.filter((idToken: IdToken) => socketUserIds.indexOf(idToken.id ) === -1);
         } else return idToDeviceToken;
     }
 
     function emitEventOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
+        console.log(`SENDING MESSAGE TO SOCKET ROOM ${roomId} WITH MESSAGE: ${JSON.stringify(message)}`);
+
         if(!sender || !sender.socket.connected) {
-            console.log(`SENDING MESSAGE TO SOCKET ROOM ${roomId} WITH MESSAGE: ${JSON.stringify(message)}`);
             io.to(stringWithSocketRoomPrefix(roomId.toString()))
                 .emit(event, message);
         } else {
@@ -87,23 +90,23 @@ module SocketEventHandler {
         return roomIdToIdAndDeviceToken.map((roomIdToken: RoomIdToken) => getDisconnectedUsersDeviceTokens(roomIdToken.idTokens));
     }
 
-    function emitEventToRooms(userRequestId: number, roomId: number[], event: string, data: object) {
+    function emitEventToRooms(userRequestId: number, roomIds: number[], event: string, data: object) {
         // TODO: Emit to multiple rooms (used by LEAVE_USER and EDIT_USER)
     }
 
     function handleFCMAndEventEmissionForDataToRooms(roomIdToIdAndDeviceToken: RoomIdToken[], event: string,
-                                                     data: object, userRequestId: number, roomId: number) {
+                                                     data: object, userRequestId: number, roomIds: number[]) {
         // TODO: Handle emission to multiple rooms (used by LEAVE_USER and EDIT_USER)
     }
 
     const onCreateMessage = (message: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) => {
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.createMessageType,
-            plainToClass(MessageCreate, message, { excludeExtraneousValues: true }), userRequestId, roomId);
+            plainToClass(Message, message, { excludeExtraneousValues: true }), userRequestId, roomId);
     }
 
     const onEditMessage = (editFields: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.editMessageType,
-            plainToClass(MessageEdit, editFields, { excludeExtraneousValues: true }), userRequestId, roomId);
+            plainToClass(Message, editFields, { excludeExtraneousValues: true }), userRequestId, roomId);
 
     const onDeleteMessage = (deletePayload: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.deleteMessageType,
@@ -111,58 +114,56 @@ module SocketEventHandler {
 
     // TODO: Implement
     // TODO: Tags and arrays are passed in as JSON/objects and simply stringified when they need to be sent
-    const onJoinUser = (joinedUser: { type: string; }
-        , idToDeviceToken: IdToken[], userRequestId: number) => {
-
-    }
+    const onJoinUser = (joinedUser: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.userJoinType,
+            plainToClass(User, joinedUser, { excludeExtraneousValues: true }), userRequestId, roomId);
 
     // TODO: Handle batch notifications by parsing the chatroom_ids property and translating it to room ids and sending emissions to all rooms with those ids
 
     // TODO: Handle leave_user being able to have both array of roomids and just a roomid
-    const onLeaveUser = (editFields: { type: string; id: number; }
-        , idToDeviceToken: IdToken[], userRequestId: number) => {
+    const onLeaveUser = (leaveUser: object
+        , idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.userLeaveType,
+            plainToClass(User, leaveUser, { excludeExtraneousValues: true }), userRequestId, roomId);
 
-    }
+    const onLeaveUserKick = (kickedUser: object
+        , roomIdToIdAndDeviceToken: RoomIdToken[], userRequestId: number, roomIds: number[]) =>
+        handleFCMAndEventEmissionForDataToRooms(roomIdToIdAndDeviceToken, SocketEvents.userLeaveType,
+            plainToClass(User, kickedUser, { excludeExtraneousValues: true }), userRequestId, roomIds);
 
-    const onLeaveUserKick = (editFields: { type: string; id: number; }
-        , roomIdToIdAndDeviceToken: RoomIdToken[], userRequestId: number, roomIds: number[]) => {
-
-    }
-
-    const onEditUser = (editFields: { type: string; id: number; }
+    const onEditUser = (editFields: User
         , roomIdToIdAndDeviceToken: RoomIdToken[], userRequestId: number, roomIds: number[]
-    ) => {
+    ) =>
+        handleFCMAndEventEmissionForDataToRooms(roomIdToIdAndDeviceToken, SocketEvents.userEditType,
+            plainToClass(User, editFields, { excludeExtraneousValues: true }), userRequestId, roomIds);
 
-    }
+    const onCreateEvent = (event: object, idToDeviceToken: IdToken[],
+                           userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.eventCreateType,
+            plainToClass(Event, event, { excludeExtraneousValues: true }), userRequestId, roomId);
 
-    const onCreateEvent = (event: { type: string; id: number;
-        name: string; photoUrl: string;
-        startDate: string; date: string;
-        lat: number; long: number;
-        description?: string
-    }, idToDeviceToken: IdToken[], userRequestId: number) => {
+    const onDeleteEvent = (deletePayload: object, idToDeviceToken: IdToken[],
+                           userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.eventDeleteType,
+            plainToClass(IdTypeModel, deletePayload, { excludeExtraneousValues: true }), userRequestId, roomId);
 
-    }
+    const onDeleteEventBatch = (deleteBatchPayload: object, idToDeviceToken: IdToken[],
+                                userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.eventDeleteBatchType,
+            plainToClass(IdTypeModel, deleteBatchPayload, { excludeExtraneousValues: true }), userRequestId, roomId);
 
-    const onDeleteEvent = () => {
+    const onEditEvent = (editFields: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.eventEditType,
+            plainToClass(Event, editFields, { excludeExtraneousValues: true }), userRequestId, roomId)
 
-    }
+    const onEditChatroom = (editFields: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.editChatroomType,
+            plainToClass(Chatroom, editFields, { excludeExtraneousValues: true }), userRequestId, roomId)
 
-    const onDeleteEventBatch = () => {
-
-    }
-
-    const onEditEvent = () => {
-
-    }
-
-    const onEditChatroom = () => {
-
-    }
-
-    const onDeleteChatroom = () => {
-
-    }
+    const onDeleteChatroom = (deleteBatchPayload: object, idToDeviceToken: IdToken[],
+                              userRequestId: number, roomId: number) =>
+        handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.deleteChatroomType,
+            plainToClass(Chatroom, deleteBatchPayload, { excludeExtraneousValues: true }), userRequestId, roomId)
 
     const socketEventResolutionMap: { [event: string]: any } = {
         [SocketEvents.createMessageType]: onCreateMessage,

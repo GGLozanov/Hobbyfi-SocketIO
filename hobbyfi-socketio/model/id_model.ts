@@ -1,7 +1,7 @@
 import {Expose} from "class-transformer";
 
 module Models {
-    export abstract class IdModel {
+    export class IdModel {
         @Expose()
         id: number
 
