@@ -30,7 +30,11 @@ class UserManager {
     }
 
     findUser(id: number): SocketUser {
-        return this.users.find((user, _) => user.id == id);
+        console.log(`find user Id query: ${id}`)
+        return this.users.find((user, _) => {
+            console.log(`user find current id: ${user.id}`);
+            return user.id == id;
+        });
     }
 
     findUserBySocketId(id: SocketId): SocketUser {

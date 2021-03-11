@@ -87,10 +87,20 @@ app.post('/receive_server_message', (req: Request, res: Response) => {
     console.log('message IDTODEVICETOKEN received from server: ' + JSON.stringify(content.id_to_device_token));
     console.log('message ROOMIDTODEVICETOKEN received from server: ' + JSON.stringify(content.room_id_to_id_and_device_token));
 
+    if(typeof content.id_to_device_token === 'string' || content.id_to_device_token instanceof String) {
+        content.id_to_device_token = JSON.parse(content.id_to_device_token);
+    }
+
+    if(typeof content.room_id_to_id_and_device_token === 'string' || content.room_id_to_id_and_device_token instanceof String) {
+        content.room_id_to_id_and_device_token = JSON.parse(content.room_id_to_id_and_device_token);
+    }
+
     const tokens = content.room_id_to_id_and_device_token ?
         plainToClass(RoomIdToken, content.room_id_to_id_and_device_token) : plainToClass(IdToken, content.id_to_device_token)
 
     const resolution = socketEventResolutionMapper(content.type);
+
+    console.log('REQUEST USER ID: ' + res.locals.userId);
 
     if(Array.isArray(resolution)) {
         // for now, this handles the LEAVE_USER special case; might have to abstract these away and make it explicit...

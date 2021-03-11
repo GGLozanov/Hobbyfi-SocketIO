@@ -41,11 +41,16 @@ module SocketEventHandler {
         return <DataMessagePayload>object;
     }
 
-    function getDisconnectedUsersDeviceTokens(idToDeviceToken: IdToken[]): IdToken[] {
-        const socketUserIds: number[] = userManager.users.map((user: SocketUser) => user.id);
+    function getDisconnectedUsersDeviceTokens(idToDeviceToken: IdToken[], roomId: number): IdToken[] {
+        const socketUserIds: number[] = userManager.users.filter((user: SocketUser) => user.roomId == roomId)
+            .map((user: SocketUser) => user.id);
+        console.log(socketUserIds);
 
         if(socketUserIds.length > 0) {
-            return idToDeviceToken.filter((idToken: IdToken) => socketUserIds.indexOf(idToken.id ) === -1);
+            return idToDeviceToken.filter((idToken: IdToken) => {
+                console.log(`id token ID: ${idToken.id}`);
+                return socketUserIds.includes(idToken.id);
+            });
         } else return idToDeviceToken;
     }
 
@@ -64,7 +69,8 @@ module SocketEventHandler {
     // map is number to string array due to users being able to log in through multiple devices
     function handleFCMAndEventEmissionForData(idToDeviceToken: IdToken[], event: string,
                                               data: object, userRequestId: number, roomId: number) {
-        const disconnectedUsersTokens = flatten(getDisconnectedUsersDeviceTokens(idToDeviceToken).map((idToken) => idToken.deviceToken));
+        const disconnectedUsersTokens = flatten(getDisconnectedUsersDeviceTokens(idToDeviceToken, roomId)
+            .map((idToken) => idToken.deviceToken));
 
         console.log(`disconnected user tokens: ${disconnectedUsersTokens}`);
         if(disconnectedUsersTokens.length > 0) {
@@ -86,8 +92,10 @@ module SocketEventHandler {
         emitEventOnSenderConnection(roomId, event, data, user);
     }
 
-    function getDisconnectedUsersRoomDeviceTokens(roomIdToIdAndDeviceToken: RoomIdToken[]): IdToken[][] {
-        return roomIdToIdAndDeviceToken.map((roomIdToken: RoomIdToken) => getDisconnectedUsersDeviceTokens(roomIdToken.idTokens));
+    function getDisconnectedUsersRoomDeviceTokens(roomIdToIdAndDeviceToken: RoomIdToken[], roomIds: number[]): IdToken[][] {
+        // return roomIdToIdAndDeviceToken.map((roomIdToken: RoomIdToken) =>
+        //     getDisconnectedUsersDeviceTokens(roomIdToken.idTokens));
+        return [];
     }
 
     function emitEventToRooms(userRequestId: number, roomIds: number[], event: string, data: object) {
