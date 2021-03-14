@@ -9,9 +9,10 @@ class UserManager {
     }
 
     addUserDistinct(user: SocketUser): void {
-        if(this.users.indexOf(user) === -1) {
+        if(this.users.indexOf(user) === -1 || !this.findUser(user.id)) {
+            console.log(`Adding user DISTINCT`);
             this.users.push(user);
-        }
+        } else console.log(`Not adding user DISTINCT`);
     }
 
     // ah, filter in lieu of splice - truly the pinnacle of suboptimal performance brought upon by
@@ -43,6 +44,18 @@ class UserManager {
 
     findUserByRoomId(id: number): SocketUser {
         return this.users.find((user, _) => user.roomId == id);
+    }
+
+    replaceUserWithId(id: number, user: SocketUser) {
+        const oldUser = this.findUser(id);
+
+        if (oldUser !== undefined) {
+            this.users[this.users.indexOf(oldUser)] = user;
+        } else {
+            throw new Error('Invalid replace call to nonexistent user!');
+        }
+
+        return oldUser;
     }
 }
 

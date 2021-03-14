@@ -11,6 +11,11 @@ module SocketEvents {
     export const eventEditType = 'EVENT_EDIT';
     export const eventDeleteType = 'EVENT_DELETE';
     export const eventDeleteBatchType = 'EVENT_DELETE_BATCH';
+
+    export function isPushNotificationEvent(event: string): boolean {
+        return event == createMessageType ||
+            event == eventCreateType || event == deleteChatroomType || event == userJoinType || event == userLeaveType;
+    }
 }
 
 module.exports = SocketEvents;

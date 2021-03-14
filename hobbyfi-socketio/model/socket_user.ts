@@ -3,10 +3,10 @@ import IdModel from "./id_model";
 
 module Models {
     export class SocketUser extends IdModel {
-        roomId: number; // i.e. chatroom id
+        roomId?: number; // i.e. chatroom id
         socket: Socket;
 
-        constructor(id: number, roomId: number, socket: Socket) {
+        constructor(id: number, socket: Socket, roomId?: number) {
             super(id);
             this.roomId = roomId;
             this.socket = socket;

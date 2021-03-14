@@ -41,22 +41,36 @@ module SocketEventHandler {
         return <DataMessagePayload>object;
     }
 
-    function getDisconnectedUsersDeviceTokens(idToDeviceToken: IdToken[], roomId: number): IdToken[] {
-        const socketUserIds: number[] = userManager.users.filter((user: SocketUser) => user.roomId == roomId)
-            .map((user: SocketUser) => user.id);
-        console.log(socketUserIds);
-
-        if(socketUserIds.length > 0) {
+    function getUsersDeviceTokens(socketUsersIds: number[], idToDeviceToken: IdToken[]) {
+        if(socketUsersIds.length > 0) {
             return idToDeviceToken.filter((idToken: IdToken) => {
                 console.log(`id token ID: ${idToken.id}`);
-                return socketUserIds.includes(idToken.id);
+                return socketUsersIds.includes(idToken.id);
             });
         } else return idToDeviceToken;
     }
 
-    function emitEventOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
-        console.log(`SENDING MESSAGE TO SOCKET ROOM ${roomId} WITH MESSAGE: ${JSON.stringify(message)}`);
+    function getDisconnectedUsersDeviceTokens(idToDeviceToken: IdToken[], roomId: number): string[] {
+        const socketUserIdsChatroom: number[] = userManager.users.filter((user: SocketUser) =>
+            user.roomId == roomId
+        ).map((user: SocketUser) => user.id);
+        console.log(socketUserIdsChatroom);
 
+        return flatten(getUsersDeviceTokens(socketUserIdsChatroom, idToDeviceToken)
+            .map((idToken) => idToken.deviceToken));
+    }
+
+    function getInactiveChatroomUsersDeviceTokens(idToDeviceToken: IdToken[]): string[] {
+        const socketUserIdsActive: number[] = userManager.users.filter((user: SocketUser) =>
+            user.roomId == null
+        ).map((user: SocketUser) => user.id);
+        console.log(`User IDs from inactive users device tokens: ${socketUserIdsActive}`);
+
+        return flatten(getUsersDeviceTokens(socketUserIdsActive, idToDeviceToken)
+            .map((idToken) => idToken.deviceToken));
+    }
+
+    function emitEventOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
         if(!sender || !sender.socket.connected) {
             io.to(stringWithSocketRoomPrefix(roomId.toString()))
                 .emit(event, message);
@@ -69,16 +83,28 @@ module SocketEventHandler {
     // map is number to string array due to users being able to log in through multiple devices
     function handleFCMAndEventEmissionForData(idToDeviceToken: IdToken[], event: string,
                                               data: object, userRequestId: number, roomId: number) {
-        const disconnectedUsersTokens = flatten(getDisconnectedUsersDeviceTokens(idToDeviceToken, roomId)
-            .map((idToken) => idToken.deviceToken));
+        const disconnectedInactiveUsersTokens = getInactiveChatroomUsersDeviceTokens(idToDeviceToken);
+        const rawDisconnectedUsersTokens = getDisconnectedUsersDeviceTokens(idToDeviceToken, roomId);
+        const disconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
+            disconnectedInactiveUsersTokens.includes(token));
 
         console.log(`disconnected user tokens: ${disconnectedUsersTokens}`);
-        if(disconnectedUsersTokens.length > 0) {
-            fcm.sendToDevice(disconnectedUsersTokens,
-                { data: stringifyObjectProps(data) }).then((r: MessagingDevicesResponse) => {
+        console.log(`disconnected user INACTIVE tokens: ${disconnectedInactiveUsersTokens}`);
+        if(rawDisconnectedUsersTokens.length > 0 || disconnectedInactiveUsersTokens.length > 0) {
+            const onFCMNotificationsSent = (r: MessagingDevicesResponse) => {
                 console.log(`FCM for event ${event} failure & success count. F: ${r.failureCount}; S: ${r.successCount}`);
                 emitEventToRoom(userRequestId, roomId, event, data);
-            });
+            };
+
+            fcm.sendToDevice(disconnectedUsersTokens, { data: stringifyObjectProps(data) })
+                .then(onFCMNotificationsSent);
+
+            if(SocketEvents.isPushNotificationEvent(event)) {
+                fcm.sendToDevice(disconnectedInactiveUsersTokens.filter(
+                        (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)),
+                    { data: stringifyObjectProps(data) })
+                    .then(onFCMNotificationsSent);
+            }
         } else {
             emitEventToRoom(userRequestId, roomId, event, data);
         }
@@ -92,10 +118,9 @@ module SocketEventHandler {
         emitEventOnSenderConnection(roomId, event, data, user);
     }
 
-    function getDisconnectedUsersRoomDeviceTokens(roomIdToIdAndDeviceToken: RoomIdToken[], roomIds: number[]): IdToken[][] {
-        // return roomIdToIdAndDeviceToken.map((roomIdToken: RoomIdToken) =>
-        //     getDisconnectedUsersDeviceTokens(roomIdToken.idTokens));
-        return [];
+    function getDisconnectedUsersRoomDeviceTokens(roomIdToIdAndDeviceToken: RoomIdToken[], roomIds: number[]): string[][] {
+        return roomIdToIdAndDeviceToken.map((roomIdToken: RoomIdToken) =>
+            getDisconnectedUsersDeviceTokens(roomIdToken.idTokens, roomIdToken.roomId));
     }
 
     function emitEventToRooms(userRequestId: number, roomIds: number[], event: string, data: object) {

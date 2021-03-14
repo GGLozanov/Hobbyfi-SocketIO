@@ -7,8 +7,9 @@ module Models {
     export class User extends IdTypeNameDescriptionImageTagModel {
         @Expose({ name: 'username' })
         name?: string;
-
+        @Expose()
         email?: string;
+        @Expose({ name: 'chatroom_ids' })
         chatroomIds?: number[];
 
         constructor(id: number, type: string, name?: string, email?: string,

@@ -41,26 +41,23 @@ io.on('connection', (socket: Socket) => {
         // refresh connection should be handled in clients through API refetch
     });
 
+    socket.on('enter_main', ({ id }) => {
+        console.log(`enter_main event received for socket and id: ${id}`);
+        userManager.addUserDistinct(new SocketUser(id, socket, null));
+    });
+
     // receive the id in the form of data IMMEDIATELY after connection
     // set SocketUser ID: i.e. socketUser.id = 1; etc. (don't use socket ID because that may interfere w/ Socket.IO)
     // contain a SocketUser list somewhere as well...
     socket.on('join_chatroom', ({ id, chatroom_id }) => {
-        console.log(`join_chatroom event received with ID: ${id} and chatroom_id: ${chatroom_id}`)
-        userManager.addUserDistinct(new SocketUser(id, chatroom_id, socket));
-
+        console.log(`join_chatroom event received for socket and chatroom_id: ${chatroom_id}`);
+        userManager.addUserDistinct(new SocketUser(id, socket, chatroom_id));
         socket.join(stringWithSocketRoomPrefix(chatroom_id.toString()));
     });
 
     socket.on('disconnect', () => {
         const user = userManager.pruneUserBySocketId(socket.id);
         console.log(`user socket LEAVE: ${user}`)
-
-        if(user) {
-            socket.leave(stringWithSocketRoomPrefix(user.roomId.toString()));
-        } else {
-            console.log(`Returned undefined user`)
-        }
-
         console.log('User disconnected');
     });
 });
