@@ -11,12 +11,15 @@ module Models {
         email?: string;
         @Expose({ name: 'chatroom_ids' })
         chatroomIds?: number[];
+        @Expose({ name: 'allowed_push_chatroom_ids' })
+        allowedPushChatroomIds?: number[];
 
         constructor(id: number, type: string, name?: string, email?: string,
-                    chatroomIds?: number[], description?: string, photoUrl?: string, tags?: Tag[]) {
+                    chatroomIds?: number[], allowedPushChatroomIds?: number[], description?: string, photoUrl?: string, tags?: Tag[]) {
             super(id, type, name, tags, description, photoUrl);
             this.email = email;
             this.chatroomIds = chatroomIds;
+            this.allowedPushChatroomIds = allowedPushChatroomIds;
         }
     }
 }

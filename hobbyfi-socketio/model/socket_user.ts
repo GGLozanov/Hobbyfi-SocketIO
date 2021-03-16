@@ -6,6 +6,8 @@ module Models {
         roomId?: number; // i.e. chatroom id
         socket: Socket;
 
+        // TODO: last_entered_room_id prop to identify chatrooms for FCM ignore
+
         constructor(id: number, socket: Socket, roomId?: number) {
             super(id);
             this.roomId = roomId;

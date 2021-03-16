@@ -14,6 +14,7 @@ import IdTypeModel from "../model/id_type_model";
 import User from "../model/user";
 import Event from "../model/event";
 import Chatroom from "../model/chatroom";
+import {Socket} from "socket.io";
 
 const stringWithSocketRoomPrefix = require('../utils/converters');
 const fcm = require('../config/firebase_config');
@@ -31,6 +32,10 @@ module SocketEventHandler {
 
     // models get JSON-ified either way; no point in making them separate model classes for now
     // also because it'd be tedious
+
+    function socketInRoom(socket: Socket, roomId: number): boolean {
+        return Object.keys(socket.rooms).includes(stringWithSocketRoomPrefix(roomId.toString()))
+    }
 
     import MessagingDevicesResponse = messaging.MessagingDevicesResponse;
 
@@ -86,20 +91,25 @@ module SocketEventHandler {
         const disconnectedInactiveUsersTokens = getInactiveChatroomUsersDeviceTokens(idToDeviceToken);
         const rawDisconnectedUsersTokens = getDisconnectedUsersDeviceTokens(idToDeviceToken, roomId);
         const disconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
-            disconnectedInactiveUsersTokens.includes(token));
+            !disconnectedInactiveUsersTokens.includes(token));
+
+        const anyDisconnected = disconnectedUsersTokens.length > 0;
+        const anyInactive = disconnectedInactiveUsersTokens.length > 0;
 
         console.log(`disconnected user tokens: ${disconnectedUsersTokens}`);
         console.log(`disconnected user INACTIVE tokens: ${disconnectedInactiveUsersTokens}`);
-        if(rawDisconnectedUsersTokens.length > 0 || disconnectedInactiveUsersTokens.length > 0) {
+        if(anyDisconnected || (SocketEvents.isPushNotificationEvent(event) && anyInactive)) {
             const onFCMNotificationsSent = (r: MessagingDevicesResponse) => {
                 console.log(`FCM for event ${event} failure & success count. F: ${r.failureCount}; S: ${r.successCount}`);
                 emitEventToRoom(userRequestId, roomId, event, data);
             };
 
-            fcm.sendToDevice(disconnectedUsersTokens, { data: stringifyObjectProps(data) })
-                .then(onFCMNotificationsSent);
+            if(anyDisconnected) {
+                fcm.sendToDevice(disconnectedUsersTokens, { data: stringifyObjectProps(data) })
+                    .then(onFCMNotificationsSent);
+            }
 
-            if(SocketEvents.isPushNotificationEvent(event)) {
+            if(SocketEvents.isPushNotificationEvent(event) && anyInactive) {
                 fcm.sendToDevice(disconnectedInactiveUsersTokens.filter(
                         (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)),
                     { data: stringifyObjectProps(data) })
