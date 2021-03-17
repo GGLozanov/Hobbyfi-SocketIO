@@ -1,17 +1,14 @@
 import { Socket } from "socket.io";
-import IdModel from "./id_model";
+import IdSocketModel from "./id_socket_model";
 
 module Models {
-    export class SocketUser extends IdModel {
+    // class is relatively the same as outersocketuser but semantic distinction is important
+    export class SocketUser extends IdSocketModel {
         roomId?: number; // i.e. chatroom id
-        socket: Socket;
-
-        // TODO: last_entered_room_id prop to identify chatrooms for FCM ignore
 
         constructor(id: number, socket: Socket, roomId?: number) {
-            super(id);
+            super(id, socket);
             this.roomId = roomId;
-            this.socket = socket;
         }
     }
 }

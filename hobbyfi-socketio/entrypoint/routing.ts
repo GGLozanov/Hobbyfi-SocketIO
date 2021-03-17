@@ -1,6 +1,6 @@
 import {Express, Request, Response} from "express";
 import require_auth from "../handler/require_auth";
-import { plainToClass } from "class-transformer";
+import {classToPlain, plainToClass} from "class-transformer";
 import SocketEventHandler from "../handler/socket_event";
 import socketEventResolutionMapper = SocketEventHandler.socketEventResolutionMapper;
 import RoomIdToken from "../model/room_id_token";
@@ -10,6 +10,7 @@ import {Server, Socket} from "socket.io";
 import userManager from "../handler/user_manager";
 import SocketUser from "../model/socket_user";
 import {Server as HttpServer} from "node:http";
+import OuterSocketUser from "../model/outer_socket_user";
 
 const cors = require('cors');
 const fs = require('fs');
@@ -43,7 +44,7 @@ io.on('connection', (socket: Socket) => {
 
     socket.on('enter_main', ({ id }) => {
         console.log(`enter_main event received for socket and id: ${id}`);
-        userManager.addUserDistinct(new SocketUser(id, socket, null));
+        userManager.addMainUserDistinct(new OuterSocketUser(id, socket, null));
     });
 
     // receive the id in the form of data IMMEDIATELY after connection
@@ -51,13 +52,48 @@ io.on('connection', (socket: Socket) => {
     // contain a SocketUser list somewhere as well...
     socket.on('join_chatroom', ({ id, chatroom_id }) => {
         console.log(`join_chatroom event received for socket and chatroom_id: ${chatroom_id}`);
-        userManager.addUserDistinct(new SocketUser(id, socket, chatroom_id));
+        const mainUser = userManager.findMainUser(id);
+        if(mainUser != undefined) {
+            mainUser.lastEnteredRoomId = null; // reset last enter Id upon new entry
+            userManager.replaceMainUserWithId(mainUser.id, mainUser);
+
+            // console.log(`join_chatroom event MAIN_SOCKET user NOT logged in. CREATING THEM AND LOGGING THEM.`);
+            // userManager.addMainUserDistinct(new OuterSocketUser(id, socket, null));
+        } else {}
+
+        userManager.addRoomUserDistinct(new SocketUser(id, socket, chatroom_id));
         socket.join(stringWithSocketRoomPrefix(chatroom_id.toString()));
     });
 
     socket.on('disconnect', () => {
-        const user = userManager.pruneUserBySocketId(socket.id);
-        console.log(`user socket LEAVE: ${user}`)
+        io.allSockets().then((sockets) => console.log(`Current socket ids: ${JSON.stringify(sockets)}`));
+        const roomUser = userManager.pruneRoomUserBySocketId(socket.id);
+
+        // OPTIMAL PERFORMANCE GO BRRR
+        if(roomUser != null) {
+            const mainUser = userManager.findMainUser(roomUser.id);
+            if(mainUser != undefined) {
+                console.log(`Chatroom socket disconnected but main socket user was left; id of user socket ${roomUser.id}`);
+                mainUser.lastEnteredRoomId = roomUser.roomId;
+                userManager.replaceMainUserWithId(mainUser.id, mainUser);
+            } else {
+                console.log(`Chatroom socket disconnected but no main socket found; main socket may have been disconnected!`);
+            }
+            socket.leave(stringWithSocketRoomPrefix(roomUser.roomId.toString()));
+        } else {
+            console.log(`Chatroom socket NOT disconnected. SOCKET disconnect MAY BE main socket`);
+            const mainUser = userManager.pruneMainUserBySocketId(socket.id);
+            if(mainUser != undefined) {
+                console.log(`Main socket disconnected with LAST_CHATROOM_ID: ${mainUser.lastEnteredRoomId} AND ID: ${mainUser.id}`);
+            } else {
+                console.log(`MAIN SOCKET WASN'T ABLE TO DISCONNECT; SOMETHING IS WRONG`);
+            }
+        }
+
+        console.log(`User manager OUTER SOCKET MAIN array: ${JSON.stringify(classToPlain(userManager.mainUsers))}`)
+        console.log(`User manager ROOM SOCKET array: ${JSON.stringify(classToPlain(userManager.roomUsers))}`)
+
+        console.log(`user socket LEAVE: ${roomUser}`)
         console.log('User disconnected');
     });
 });
