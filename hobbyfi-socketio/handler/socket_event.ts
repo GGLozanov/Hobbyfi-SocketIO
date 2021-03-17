@@ -9,7 +9,7 @@ import RoomIdToken from "../model/room_id_token";
 import userManager from "../handler/user_manager";
 import io from "../entrypoint/routing";
 import Message from "../model/message";
-import {plainToClass} from "class-transformer";
+import {classToPlain, plainToClass} from "class-transformer";
 import IdTypeModel from "../model/id_type_model";
 import User from "../model/user";
 import Event from "../model/event";
@@ -79,12 +79,13 @@ module SocketEventHandler {
     }
 
     function emitEventToRoomOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
+        console.log(`DATA EMITTING TO ROOM: ${JSON.stringify(classToPlain(message))}`);
         if(!sender || !sender.socket.connected) {
             io.to(stringWithSocketRoomPrefix(roomId.toString()))
-                .emit(event, message);
+                .emit(event, classToPlain(message));
         } else {
             sender.socket.to(stringWithSocketRoomPrefix(roomId.toString()))
-                .emit(event, message);
+                .emit(event, classToPlain(message));
         }
     }
 
@@ -142,15 +143,16 @@ module SocketEventHandler {
     }
 
     function emitEventToRoomsOnSenderConnection(roomIds: number[], event: string, data: object, sender: SocketUser) {
+        console.log(`DATA EMITTING TO MAAAANY ROOMS: ${JSON.stringify(classToPlain(data))}`);
         if(!sender || !sender.socket.connected) {
             roomIds.forEach((roomId: number, _: number) => {
                 io.to(stringWithSocketRoomPrefix(roomId.toString()))
-                    .emit(event, data);
+                    .emit(event, classToPlain(data));
             });
         } else {
             roomIds.forEach((roomId: number, _: number) => {
                 sender.socket.to(stringWithSocketRoomPrefix(roomId.toString()))
-                    .emit(event, data);
+                    .emit(event, classToPlain(data));
             });
         }
     }

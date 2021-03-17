@@ -18,6 +18,7 @@ module Models {
                     chatroomIds?: number[], allowedPushChatroomIds?: number[], description?: string, photoUrl?: string, tags?: Tag[]) {
             super(id, type, name, tags, description, photoUrl);
             this.email = email;
+            this.name = name;
             this.chatroomIds = chatroomIds;
             this.allowedPushChatroomIds = allowedPushChatroomIds;
         }

@@ -4,13 +4,13 @@ module SocketEvents {
     export const deleteMessageType = 'DELETE_MESSAGE';
     export const userJoinType = 'JOIN_USER';
     export const userLeaveType = 'LEAVE_USER';
-    export const userEditType = 'USER_EDIT';
+    export const userEditType = 'EDIT_USER';
     export const deleteChatroomType = 'DELETE_CHATROOM';
     export const editChatroomType = 'EDIT_CHATROOM';
-    export const eventCreateType = 'EVENT_CREATE';
-    export const eventEditType = 'EVENT_EDIT';
-    export const eventDeleteType = 'EVENT_DELETE';
-    export const eventDeleteBatchType = 'EVENT_DELETE_BATCH';
+    export const eventCreateType = 'CREATE_EVENT';
+    export const eventEditType = 'EDIT_EVENT';
+    export const eventDeleteType = 'DELETE_EVENT';
+    export const eventDeleteBatchType = 'DELETE_EVENT_BATCH';
 
     export function isPushNotificationEvent(event: string): boolean {
         return event == createMessageType ||
