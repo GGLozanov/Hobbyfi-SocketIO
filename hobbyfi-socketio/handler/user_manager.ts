@@ -1,18 +1,18 @@
 import {SocketId} from "socket.io-adapter";
 import SocketUser from "../model/socket_user";
-import OuterSocketUser from "../model/outer_socket_user";
+import IdSocketModel from "../model/id_socket_model";
 
 class UserManager {
-    roomUsers: SocketUser[];
-    mainUsers: OuterSocketUser[];
+    roomUsers: SocketUser[]; // users in a given room
+    mainUsers: IdSocketModel[]; // users in Main screen (filter FCM and do not send messages while connected)
 
-    constructor(initialUsers: SocketUser[] = [], mainUsers: OuterSocketUser[] = []) {
+    constructor(initialUsers: SocketUser[] = [], mainUsers: IdSocketModel[] = []) {
         this.roomUsers = initialUsers;
         this.mainUsers = mainUsers;
     }
 
-    addMainUserDistinct(user: OuterSocketUser): void {
-        if(this.roomUsers.indexOf(user) === -1) {
+    addMainUserDistinct(user: IdSocketModel): void {
+        if(this.mainUsers.indexOf(user) === -1) {
             console.log(`Adding MAIN OUTER SOCKET user DISTINCT`);
             this.mainUsers.push(user);
         } else console.log(`Not adding MAIN OUTER SOCKET user DISTINCT`);
@@ -25,7 +25,7 @@ class UserManager {
         } else console.log(`Not adding ROOM SOCKET user DISTINCT`);
     }
 
-    pruneMainUserBySocketId(id: SocketId): OuterSocketUser {
+    pruneMainUserBySocketId(id: SocketId): IdSocketModel {
         const pruneUserIndex = this.mainUsers.findIndex(user => user.socket.id == id);
 
         if (pruneUserIndex !== -1) {
@@ -51,7 +51,7 @@ class UserManager {
         });
     }
 
-    findMainUser(id: number): OuterSocketUser {
+    findMainUser(id: number): IdSocketModel {
         console.log(`find MAIN OUTER SOCKET user Id query: ${id}`)
         return this.mainUsers.find((user, _) => {
             console.log(`MAIN OUTER SOCKET user find current id: ${user.id}`);
@@ -71,7 +71,7 @@ class UserManager {
         return oldUser;
     }
 
-    replaceMainUserWithId(id: number, user: OuterSocketUser) {
+    replaceMainUserWithId(id: number, user: IdSocketModel) {
         const oldUser = this.findMainUser(id);
 
         if (oldUser !== undefined) {

@@ -10,7 +10,7 @@ import {Server, Socket} from "socket.io";
 import userManager from "../handler/user_manager";
 import SocketUser from "../model/socket_user";
 import {Server as HttpServer} from "node:http";
-import OuterSocketUser from "../model/outer_socket_user";
+import IdSocketModel from "../model/id_socket_model";
 
 const cors = require('cors');
 const fs = require('fs');
@@ -31,75 +31,72 @@ app.use(cors());
 app.all('*', excludeRoutes(['/test'], require_auth));
 
 io.on('connection', (socket: Socket) => {
-    console.log('New user connected');
-    console.log(`socket connected: ${socket.connected}`);
-    console.log(`socket id: ${socket.id}`);
-    console.log(`sockets all ids: ${Array.from(io.sockets.sockets.keys())}`);
+    if(socket != undefined) {
+        console.log('New user connected');
+        console.log(`socket connected: ${socket.connected}`);
+        console.log(`socket id: ${socket.id}`);
+        console.log(`sockets all ids: ${Array.from(io.sockets.sockets.keys())}`);
 
-    socket.on("connect", () => {
-        console.log('New user connected [Confirm]');
-        // socket.sendBuffer = []; // empty send buffer for emissions queued up for offline unavailability
-        // refresh connection should be handled in clients through API refetch
-    });
+        socket.on("connect", () => {
+            console.log('New user connected [Confirm]');
+            // socket.sendBuffer = []; // empty send buffer for emissions queued up for offline unavailability
+            // refresh connection should be handled in clients through API refetch
+        });
 
-    socket.on('enter_main', (data) => {
-        if(data != undefined && data.id != undefined) {
-            console.log(`enter_main event received for socket and id: ${data.id}`);
-            userManager.addMainUserDistinct(new OuterSocketUser(data.id, socket, null));
-        } else {
-            console.log(`enter_main event received with UNDEFINED DATA OR ID from data.`)
-        }
-    });
-
-    // receive the id in the form of data IMMEDIATELY after connection
-    // set SocketUser ID: i.e. socketUser.id = 1; etc. (don't use socket ID because that may interfere w/ Socket.IO)
-    // contain a SocketUser list somewhere as well...
-    socket.on('join_chatroom', ({ id, chatroom_id }) => {
-        console.log(`join_chatroom event received for socket w/ id: ${id} and chatroom_id: ${chatroom_id}`);
-        const mainUser = userManager.findMainUser(id);
-        if(mainUser != undefined) {
-            mainUser.lastEnteredRoomId = null; // reset last enter Id upon new entry
-            userManager.replaceMainUserWithId(mainUser.id, mainUser);
-
-            // console.log(`join_chatroom event MAIN_SOCKET user NOT logged in. CREATING THEM AND LOGGING THEM.`);
-            // userManager.addMainUserDistinct(new OuterSocketUser(id, socket, null));
-        }
-
-        userManager.addRoomUserDistinct(new SocketUser(id, socket, chatroom_id));
-        socket.join(stringWithSocketRoomPrefix(chatroom_id.toString()));
-    });
-
-    socket.on('disconnect', () => {
-        console.log(`Current socket ids: ${Array.from(io.sockets.sockets.keys())}`);
-        const roomUser = userManager.pruneRoomUserBySocketId(socket.id);
-
-        // OPTIMAL PERFORMANCE GO BRRR
-        if(roomUser != null) {
-            const mainUser = userManager.findMainUser(roomUser.id);
-            if(mainUser != undefined) {
-                console.log(`Chatroom socket disconnected but main socket user was left; id of user socket ${roomUser.id}`);
-                mainUser.lastEnteredRoomId = roomUser.roomId;
-                userManager.replaceMainUserWithId(mainUser.id, mainUser);
+        socket.on('enter_main', (data) => {
+            if(data != undefined && data.id != undefined) {
+                console.log(`enter_main event received for socket and id: ${data.id}`);
+                userManager.addMainUserDistinct(new IdSocketModel(data.id, socket)); // tracks FCM filtering for people idling in app
             } else {
-                console.log(`Chatroom socket disconnected but no main socket found; main socket may have been disconnected!`);
+                console.log(`enter_main event received with UNDEFINED DATA OR ID from data.`)
             }
-            socket.leave(stringWithSocketRoomPrefix(roomUser.roomId.toString()));
-        } else {
-            console.log(`Chatroom socket NOT disconnected. SOCKET disconnect MAY BE main socket`);
-            const mainUser = userManager.pruneMainUserBySocketId(socket.id);
-            if(mainUser != null) {
-                console.log(`Main socket disconnected with LAST_CHATROOM_ID: ${mainUser.lastEnteredRoomId} AND ID: ${mainUser.id}`);
+        });
+
+        // receive the id in the form of data IMMEDIATELY after connection
+        // set SocketUser ID: i.e. socketUser.id = 1; etc. (don't use socket ID because that may interfere w/ Socket.IO)
+        // contain a SocketUser list somewhere as well...
+        socket.on('join_chatroom', (data) => {
+            // { id, chatroom_id }
+            if(data != undefined && data.id != undefined && data.chatroom_id != undefined) {
+                console.log(`join_chatroom event received for socket w/ id: ${data.id} and chatroom_id: ${data.chatroom_id}`);
+
+                userManager.addRoomUserDistinct(new SocketUser(data.id, socket, data.chatroom_id));
+                socket.join(stringWithSocketRoomPrefix(data.chatroom_id.toString()));
             } else {
-                console.log(`MAIN SOCKET WASN'T ABLE TO DISCONNECT; SOMETHING IS WRONG`);
+                console.log(`join_chatroom event received with UNDEFINED DATA OR ID from data.`)
             }
-        }
+            // const mainUser = userManager.findMainUser(id);
+            // if(mainUser != undefined) {
+            //     userManager.replaceMainUserWithId(mainUser.id, mainUser);
+            //
+            //     // console.log(`join_chatroom event MAIN_SOCKET user NOT logged in. CREATING THEM AND LOGGING THEM.`);
+            //     // userManager.addMainUserDistinct(new OuterSocketUser(id, socket, null));
+            // }
 
-        console.log(`User manager OUTER SOCKET MAIN array: ${JSON.stringify(classToPlain(userManager.mainUsers))}`)
-        console.log(`User manager ROOM SOCKET array: ${JSON.stringify(classToPlain(userManager.roomUsers))}`)
+        });
 
-        console.log(`user socket LEAVE: ${roomUser}`)
-        console.log('User disconnected');
-    });
+        socket.on('disconnect', () => {
+            const roomUser = userManager.pruneRoomUserBySocketId(socket.id);
+
+            // OPTIMAL PERFORMANCE GO BRRR
+            if(roomUser != null) {
+                socket.leave(stringWithSocketRoomPrefix(roomUser.roomId.toString()));
+            } else {
+                console.log(`Chatroom socket NOT disconnected. SOCKET disconnect MAY BE main socket`);
+                const mainUser = userManager.pruneMainUserBySocketId(socket.id);
+                if(mainUser != null) {
+                    console.log(`Main socket disconnected with ID: ${mainUser.id}`);
+                } else {
+                    console.log(`MAIN SOCKET WASN'T ABLE TO DISCONNECT; SOMETHING IS WRONG`);
+                }
+            }
+
+            console.log(`user socket LEAVE: ${roomUser}`)
+            console.log('User disconnected');
+        });
+    } else {
+        console.log(`UHHHH, UNDEFINED SOCKET????`);
+    }
 });
 
 app.get('/test', (req: Request, res: Response) => {

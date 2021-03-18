@@ -5,11 +5,11 @@ module Models {
         @Expose({ name: 'user_id' })
         id: number;
         @Expose({ name: 'device_tokens' })
-        deviceToken: string[];
+        deviceTokens: string[];
 
         constructor(id: number, deviceToken: string[]) {
             this.id = id;
-            this.deviceToken = deviceToken;
+            this.deviceTokens = deviceToken;
         }
     }
 }
