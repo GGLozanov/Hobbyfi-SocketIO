@@ -6,7 +6,7 @@ import flatten from "../utils/flattener";
 import SocketUser from "../model/socket_user";
 import IdToken from "../model/id_token";
 import RoomIdToken from "../model/room_id_token";
-import userManager from "../handler/user_manager";
+import userManager, {ExpandedSet} from "../handler/user_manager";
 import io from "../entrypoint/routing";
 import Message from "../model/message";
 import {classToPlain, plainToClass} from "class-transformer";
@@ -62,11 +62,11 @@ module SocketEventHandler {
     }
 
     function filterUsersDeviceTokensByConnectedSockets(idToDeviceToken: IdToken[],
-                                                       sourceArray: IdSocketModel[],
-                                                       oppositeArray: IdSocketModel[]): string[] {
-        const socketUserIdsChatroom: number[] = sourceArray
+                                                       sourceArray: ExpandedSet<IdSocketModel>,
+                                                       oppositeArray: ExpandedSet<IdSocketModel>): string[] {
+        const socketUserIdsChatroom: number[] = Array.from(sourceArray
             .filter((user: IdSocketModel) => !oppositeArray.includes(user))
-            .map((user: IdSocketModel) => user.id);
+            .map((user: IdSocketModel) => user.id).keys());
         console.log(socketUserIdsChatroom);
 
         return flatten(getUsersDeviceTokens(socketUserIdsChatroom, idToDeviceToken)
@@ -100,10 +100,12 @@ module SocketEventHandler {
     function processFCMAndEventEmissionForData(
         rawDisconnectedUsersTokens: string[], disconnectedInactiveUsersTokens: string[],
         event: string,
-        data: object, onEmission: () => void
+        data: any, rooms: number[], onEmission: () => void
     ) {
-        disconnectedInactiveUsersTokens = disconnectedInactiveUsersTokens.filter(
-            (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens));
+        // clean up possible duplicates
+        rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens)];
+        disconnectedInactiveUsersTokens = [...new Set(disconnectedInactiveUsersTokens.filter(
+            (disconnInactiveTokens) => !rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
 
         const anyDisconnected = rawDisconnectedUsersTokens.length > 0;
         const anyInactive = disconnectedInactiveUsersTokens.length > 0;
@@ -119,6 +121,7 @@ module SocketEventHandler {
                 onEmission();
             };
 
+            data.roomIds = rooms; // add special roomIds prop
             if(anyDisconnected) {
                 fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
                     .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
@@ -139,9 +142,6 @@ module SocketEventHandler {
     // map is number to string array due to users being able to log in through multiple devices
     function handleFCMAndEventEmissionForData(idToDeviceToken: IdToken[], event: string,
                                               data: object, userRequestId: number, roomId: number) {
-        console.log(`MAIN USERS AT MOMENT OF EMISSION: ${JSON.stringify(classToPlain(userManager.mainUsers))}`);
-        console.log(`CHATROOM USERS AT MOMENT OF EMISSION: ${JSON.stringify(classToPlain(userManager.mainUsers))}`);
-
         const disconnectedInactiveUsersTokens =  filterUsersDeviceTokensByConnectedSockets(idToDeviceToken, userManager.mainUsers, userManager.roomUsers);
                 // getInactiveChatroomUsersDeviceTokens(idToDeviceToken, roomId);
         const rawDisconnectedUsersTokens = filterUsersDeviceTokensByConnectedSockets(idToDeviceToken, userManager.roomUsers, userManager.mainUsers);
@@ -152,7 +152,7 @@ module SocketEventHandler {
         // room tokens take precedence over inactive => exclude any that match w/ rawDisconnectedUsersTokens
 
         processFCMAndEventEmissionForData(rawDisconnectedUsersTokens,
-            disconnectedInactiveUsersTokens, event, data, () => emitEventToRoom(userRequestId, roomId, event, data));
+            disconnectedInactiveUsersTokens, event, data, [roomId],() => emitEventToRoom(userRequestId, roomId, event, data));
     }
 
     function emitEventToRoom(userRequestId: number, roomId: number, event: string, data: object) {
@@ -176,23 +176,17 @@ module SocketEventHandler {
     }
 
     function emitEventToRoomsOnSenderConnection(roomIds: number[], event: string, data: object, sender: SocketUser) {
-        console.log(`DATA EMITTING TO MAAAANY ROOMS: ${JSON.stringify(classToPlain(data))}`);
         if(!sender || !sender.socket.connected) {
-            roomIds.forEach((roomId: number, _: number) => {
-                io.to(stringWithSocketRoomPrefix(roomId.toString()))
-                    .emit(event, classToPlain(data));
-            });
+            io.to(roomIds.map((roomId: number) => stringWithSocketRoomPrefix(roomId.toString())))
+                .emit(event, classToPlain(data));
         } else {
-            roomIds.forEach((roomId: number, _: number) => {
-                sender.socket.to(stringWithSocketRoomPrefix(roomId.toString()))
-                    .emit(event, classToPlain(data));
-            });
+            sender.socket.to(roomIds.map((roomId: number) => stringWithSocketRoomPrefix(roomId.toString())))
+                .emit(event, classToPlain(data));
         }
     }
 
     function emitEventToRooms(userRequestId: number, roomIds: number[], event: string, data: object) {
         let user = userManager.findRoomUser(userRequestId);
-        console.log(`user found on ${event} socket event handler: ${user}`);
 
         emitEventToRoomsOnSenderConnection(roomIds, event, data, user);
     }
@@ -205,7 +199,7 @@ module SocketEventHandler {
         //     !disconnectedInactiveUsersTokens.includes(token));
 
         processFCMAndEventEmissionForData(rawDisconnectedUsersTokens, disconnectedInactiveUsersTokens,
-            event, data, () => emitEventToRooms(userRequestId, roomIds, event, data));
+            event, data, roomIds, () => emitEventToRooms(userRequestId, roomIds, event, data));
     }
 
     function handleFailedFCMMessages(results: MessagingDeviceResult[], tokens: string[]) {
@@ -223,8 +217,10 @@ module SocketEventHandler {
                 device_tokens: failedTokens
             }),
             auth: {
-                username: process.env.serverUsername || fs.readFileSync(__dirname + '/../keys/socket_server_username.txt').toString(),
-                password: process.env.serverPassword || fs.readFileSync(__dirname + '/../keys/socket_server_password.txt').toString()
+                username: process.env.serverUsername ||
+                    fs.readFileSync(__dirname + '/../keys/socket_server_username.txt').toString(),
+                password: process.env.serverPassword ||
+                    fs.readFileSync(__dirname + '/../keys/socket_server_password.txt').toString()
             },
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8'

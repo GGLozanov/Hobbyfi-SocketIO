@@ -72,7 +72,6 @@ io.on('connection', (socket: Socket) => {
             //     // console.log(`join_chatroom event MAIN_SOCKET user NOT logged in. CREATING THEM AND LOGGING THEM.`);
             //     // userManager.addMainUserDistinct(new OuterSocketUser(id, socket, null));
             // }
-
         });
 
         socket.on('disconnect', () => {
@@ -105,9 +104,7 @@ app.get('/test', (req: Request, res: Response) => {
 
 app.post('/receive_server_message', (req: Request, res: Response) => {
     const content = req.body;
-    console.log('BODY received from server: ' + JSON.stringify(content));
 
-    console.log(req.ip);
     if((process.env.serverHost ||
             fs.readFileSync(__dirname + '/../keys/server_host.txt').toString()) != req.ip && req.ip != '::1') {
         return res.status(401).send('Invalid remote address for endpoint designed to only be accessible from remote PHP REST server!');
@@ -117,9 +114,6 @@ app.post('/receive_server_message', (req: Request, res: Response) => {
             (!content.id_to_device_token && !content.room_id_to_id_and_device_token)) {
         return res.status(400).send('Invalid encoding or missing server message type or missing ID to device token map for FCM!');
     }
-    console.log('message TYPE received from server: ' + content.type);
-    console.log('message IDTODEVICETOKEN received from server: ' + JSON.stringify(content.id_to_device_token));
-    console.log('message ROOMIDTODEVICETOKEN received from server: ' + JSON.stringify(content.room_id_to_id_and_device_token));
 
     if(typeof content.id_to_device_token === 'string' || content.id_to_device_token instanceof String) {
         content.id_to_device_token = JSON.parse(content.id_to_device_token);
@@ -133,9 +127,6 @@ app.post('/receive_server_message', (req: Request, res: Response) => {
         plainToClass(RoomIdToken, content.room_id_to_id_and_device_token) : plainToClass(IdToken, content.id_to_device_token)
 
     const resolution = socketEventResolutionMapper(content.type);
-
-    console.log('REQUEST USER ID: ' + res.locals.userId);
-
     if(Array.isArray(resolution)) {
         // for now, this handles the LEAVE_USER special case; might have to abstract these away and make it explicit...
         !content.room_id_to_id_and_device_token ?

@@ -2,50 +2,94 @@ import {SocketId} from "socket.io-adapter";
 import SocketUser from "../model/socket_user";
 import IdSocketModel from "../model/id_socket_model";
 
-class UserManager {
-    roomUsers: SocketUser[]; // users in a given room
-    mainUsers: IdSocketModel[]; // users in Main screen (filter FCM and do not send messages while connected)
+// shouldn't be here but do I type like I care
+export class ExpandedSet<T> extends Set<T> {
+    find(predicate: (value: T) => boolean): T {
+        const entries = Array.from(this.entries())
+        for(const [value] of entries) {
+            if (predicate(value)) return value;
+        }
+        return null;
+    }
 
-    constructor(initialUsers: SocketUser[] = [], mainUsers: IdSocketModel[] = []) {
+    includes(value: T): boolean {
+        return this.find((val) => val === value) != null;
+    }
+
+    replace(predicate: (value: T) => boolean, val: T): boolean {
+        const entries = Array.from(this.entries())
+        for(const [value] of entries) {
+            if (predicate(value)) {
+                this.delete(value);
+                this.add(val);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    filter(predicate: (v: T) => boolean) {
+        const newSet = new ExpandedSet<T>()
+        const entries = Array.from(this.entries())
+        for(const [value] of entries) {
+            if (predicate(value)) newSet.add(value)
+        }
+        return newSet
+    }
+
+    map<V>(transform: (v: T) => V): ExpandedSet<V> {
+        const newSet = new ExpandedSet<V>()
+        const entries = Array.from(this.entries())
+        for(const [value] of entries) {
+            newSet.add(transform(value));
+        }
+        return newSet
+    }
+}
+
+class UserManager {
+    roomUsers: ExpandedSet<SocketUser>; // users in a given room
+    mainUsers: ExpandedSet<IdSocketModel>; // users in Main screen (filter FCM and do not send messages while connected)
+
+    constructor(initialUsers: ExpandedSet<SocketUser> = new ExpandedSet([]),
+                mainUsers: ExpandedSet<IdSocketModel> = new ExpandedSet([])) {
         this.roomUsers = initialUsers;
         this.mainUsers = mainUsers;
     }
 
     addMainUserDistinct(user: IdSocketModel): void {
-        if(this.mainUsers.indexOf(user) === -1) {
-            console.log(`Adding MAIN OUTER SOCKET user DISTINCT`);
-            this.mainUsers.push(user);
-        } else console.log(`Not adding MAIN OUTER SOCKET user DISTINCT`);
+        console.log(`Adding MAIN OUTER SOCKET user DISTINCT`);
+        this.mainUsers.add(user);
     }
 
     addRoomUserDistinct(user: SocketUser): void {
-        if(this.roomUsers.indexOf(user) === -1) {
-            console.log(`Adding ROOM SOCKET user DISTINCT`);
-            this.roomUsers.push(user);
-        } else console.log(`Not adding ROOM SOCKET user DISTINCT`);
+        console.log(`Adding ROOM SOCKET user DISTINCT`);
+        this.roomUsers.add(user);
     }
 
     pruneMainUserBySocketId(id: SocketId): IdSocketModel {
-        const pruneUserIndex = this.mainUsers.findIndex(user => user.socket.id == id);
+        const pruneUser = this.mainUsers.find(user => user.socket.id == id);
 
-        if (pruneUserIndex !== -1) {
-            return this.mainUsers.splice(pruneUserIndex, 1)[0];
+        if (pruneUser !== null) {
+            this.mainUsers.delete(pruneUser);
+            return pruneUser;
         }
         return null;
     }
 
     pruneRoomUserBySocketId(id: SocketId): SocketUser {
-        const pruneUserIndex = this.roomUsers.findIndex(user => user.socket.id == id);
+        const pruneUser = this.roomUsers.find(user => user.socket.id == id);
 
-        if (pruneUserIndex !== -1) {
-            return this.roomUsers.splice(pruneUserIndex, 1)[0];
+        if (pruneUser !== null) {
+            this.roomUsers.delete(pruneUser);
+            return pruneUser;
         }
         return null;
     }
 
     findRoomUser(id: number): SocketUser {
         console.log(`find ROOM SOCKET user Id query: ${id}`)
-        return this.roomUsers.find((user, _) => {
+        return this.roomUsers.find((user) => {
             console.log(`ROOM SOCKET user find current id: ${user.id}`);
             return user.id == id;
         });
@@ -53,34 +97,10 @@ class UserManager {
 
     findMainUser(id: number): IdSocketModel {
         console.log(`find MAIN OUTER SOCKET user Id query: ${id}`)
-        return this.mainUsers.find((user, _) => {
+        return this.mainUsers.find((user) => {
             console.log(`MAIN OUTER SOCKET user find current id: ${user.id}`);
             return user.id == id;
         });
-    }
-
-    replaceRoomUserWithId(id: number, user: SocketUser) {
-        const oldUser = this.findRoomUser(id);
-
-        if (oldUser !== undefined) {
-            this.mainUsers[this.mainUsers.indexOf(oldUser)] = user;
-        } else {
-            throw new Error('Invalid replace call to nonexistent ROOM SOCKET user!');
-        }
-
-        return oldUser;
-    }
-
-    replaceMainUserWithId(id: number, user: IdSocketModel) {
-        const oldUser = this.findMainUser(id);
-
-        if (oldUser !== undefined) {
-            this.mainUsers[this.mainUsers.indexOf(oldUser)] = user;
-        } else {
-            throw new Error('Invalid replace call to nonexistent MAIN OUTER SOCKET user!');
-        }
-
-        return oldUser;
     }
 }
 
