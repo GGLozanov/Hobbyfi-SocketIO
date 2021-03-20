@@ -68,9 +68,9 @@ class UserManager {
     }
 
     pruneMainUserBySocketId(id: SocketId): IdSocketModel {
-        const pruneUser = this.mainUsers.find(user => user.socket.id == id);
+        const pruneUser = this.mainUsers.find(user => user.socket.id === id);
 
-        if (pruneUser !== null) {
+        if (pruneUser != null) {
             this.mainUsers.delete(pruneUser);
             return pruneUser;
         }
@@ -78,9 +78,9 @@ class UserManager {
     }
 
     pruneRoomUserBySocketId(id: SocketId): SocketUser {
-        const pruneUser = this.roomUsers.find(user => user.socket.id == id);
+        const pruneUser = this.roomUsers.find(user => user.socket.id === id);
 
-        if (pruneUser !== null) {
+        if (pruneUser != null) {
             this.roomUsers.delete(pruneUser);
             return pruneUser;
         }

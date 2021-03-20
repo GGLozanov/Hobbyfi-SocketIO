@@ -103,16 +103,21 @@ module SocketEventHandler {
         data: any, rooms: number[], onEmission: () => void
     ) {
         // clean up possible duplicates
-        rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens)];
+        rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens.filter(
+            (rawDisconnectedTokens: string) => disconnectedInactiveUsersTokens.includes(rawDisconnectedTokens)
+        ))];
         disconnectedInactiveUsersTokens = [...new Set(disconnectedInactiveUsersTokens.filter(
-            (disconnInactiveTokens) => !rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
+            (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
 
         const anyDisconnected = rawDisconnectedUsersTokens.length > 0;
         const anyInactive = disconnectedInactiveUsersTokens.length > 0;
 
         console.log(`disconnected ROOM user tokens: ${rawDisconnectedUsersTokens}`);
         console.log(`disconnected MAIN USER INACTIVE tokens: ${disconnectedInactiveUsersTokens}`);
-        if(anyDisconnected || (SocketEvents.isPushNotificationEvent(event) && anyInactive)) {
+
+        // FCM Foreground reactivation doesn't exist because apparently Android does *not* suspend network activity
+        // for standby? Or it isn't documented. Weird. Just send FCM for push notifications then.
+        if(SocketEvents.isPushNotificationEvent(event) && (anyDisconnected || anyInactive)) {
             const onFCMNotificationsSent = (r: MessagingDevicesResponse, tokens: string[]) => {
                 console.log(`FCM for event ${event} failure & success count. F: ${r.failureCount}; S: ${r.successCount}`);
                 if(r.failureCount > 0) {
@@ -176,6 +181,7 @@ module SocketEventHandler {
     }
 
     function emitEventToRoomsOnSenderConnection(roomIds: number[], event: string, data: object, sender: SocketUser) {
+        console.log(`DATA EMITTING TO ROOM: ${JSON.stringify(classToPlain(data))}`);
         if(!sender || !sender.socket.connected) {
             io.to(roomIds.map((roomId: number) => stringWithSocketRoomPrefix(roomId.toString())))
                 .emit(event, classToPlain(data));
