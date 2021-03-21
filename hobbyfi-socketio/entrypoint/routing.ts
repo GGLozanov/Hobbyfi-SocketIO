@@ -60,18 +60,16 @@ io.on('connection', (socket: Socket) => {
             if(data != undefined && data.id != undefined && data.chatroom_id != undefined) {
                 console.log(`join_chatroom event received for socket w/ id: ${data.id} and chatroom_id: ${data.chatroom_id}`);
 
+                const mainUser = userManager.findMainUser(data.id);
+                if(mainUser != undefined) {
+                    userManager.pruneMainUserById(mainUser.id);
+                }
+
                 userManager.addRoomUserDistinct(new SocketUser(data.id, socket, data.chatroom_id));
                 socket.join(stringWithSocketRoomPrefix(data.chatroom_id.toString()));
             } else {
                 console.log(`join_chatroom event received with UNDEFINED DATA OR ID from data.`)
             }
-            // const mainUser = userManager.findMainUser(id);
-            // if(mainUser != undefined) {
-            //     userManager.replaceMainUserWithId(mainUser.id, mainUser);
-            //
-            //     // console.log(`join_chatroom event MAIN_SOCKET user NOT logged in. CREATING THEM AND LOGGING THEM.`);
-            //     // userManager.addMainUserDistinct(new OuterSocketUser(id, socket, null));
-            // }
         });
 
         socket.on('disconnect', () => {

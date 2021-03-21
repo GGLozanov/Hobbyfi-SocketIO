@@ -77,6 +77,16 @@ class UserManager {
         return null;
     }
 
+    pruneMainUserById(id: number): IdSocketModel {
+        const pruneUser = this.mainUsers.find(user => user.id === id);
+
+        if (pruneUser != null) {
+            this.mainUsers.delete(pruneUser);
+            return pruneUser;
+        }
+        return null;
+    }
+
     pruneRoomUserBySocketId(id: SocketId): SocketUser {
         const pruneUser = this.roomUsers.find(user => user.socket.id === id);
 

@@ -73,19 +73,6 @@ module SocketEventHandler {
             .map((idToken) => idToken.deviceTokens));
     }
 
-    // function getInactiveChatroomUsersDeviceTokens(idToDeviceToken: IdToken[], roomId: number): string[] {
-    //     const socketUserIdsActive: number[] = userManager.mainUsers
-    //         .filter((user: IdSocketModel) => {
-    //             console.log(`ID for MAIN OUTER SOCKET USER: ${user.lastEnteredRoomId}`);
-    //             return user.lastEnteredRoomId == roomId
-    //         }) // only for the last entered (relevant) chatroom
-    //         .map((user: IdSocketModel) => user.id);
-    //     console.log(`User IDs from inactive (MAIN SOCKET) users device tokens: ${socketUserIdsActive}`);
-    //
-    //     return flatten(getUsersDeviceTokens(socketUserIdsActive, idToDeviceToken)
-    //         .map((idToken) => idToken.deviceToken));
-    // }
-
     function emitEventToRoomOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
         console.log(`DATA EMITTING TO ROOM: ${JSON.stringify(classToPlain(message))}`);
         if(!sender || !sender.socket.connected) {
@@ -115,6 +102,7 @@ module SocketEventHandler {
         console.log(`disconnected ROOM user tokens: ${rawDisconnectedUsersTokens}`);
         console.log(`disconnected MAIN USER INACTIVE tokens: ${disconnectedInactiveUsersTokens}`);
 
+        // FIXME: Duplicate FCM sending... dumbass
         // FCM Foreground reactivation doesn't exist because apparently Android does *not* suspend network activity
         // for standby? Or it isn't documented. Weird. Just send FCM for push notifications then.
         if(SocketEvents.isPushNotificationEvent(event) && (anyDisconnected || anyInactive)) {
