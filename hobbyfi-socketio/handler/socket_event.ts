@@ -73,9 +73,11 @@ module SocketEventHandler {
             .map((idToken) => idToken.deviceTokens));
     }
 
-    function emitEventToRoomOnSenderConnection(roomId: number, event: string, message: object, sender?: SocketUser) {
+    function emitEventToRoomOnSenderConnection(roomId: number, event: string, message: any, sender?: SocketUser) {
         console.log(`DATA EMITTING TO ROOM: ${JSON.stringify(classToPlain(message))}`);
-        if(!sender || !sender.socket.connected) {
+        if(!sender || !sender.socket.connected ||
+                (event == SocketEvents.userLeaveType && message.id != sender?.id) ||
+                (event == SocketEvents.createMessageType && !message.user_sent_id)) {
             io.to(stringWithSocketRoomPrefix(roomId.toString()))
                 .emit(event, classToPlain(message));
         } else {
