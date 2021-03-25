@@ -46,6 +46,12 @@ io.on('connection', (socket: Socket) => {
         socket.on('enter_main', (data) => {
             if(data != undefined && data.id != undefined) {
                 console.log(`enter_main event received for socket and id: ${data.id}`);
+
+                const roomUser = userManager.findRoomUser(data.id);
+                if(roomUser != undefined) {
+                    userManager.pruneRoomUserById(roomUser.id);
+                }
+
                 userManager.addMainUserDistinct(new IdSocketModel(data.id, socket)); // tracks FCM filtering for people idling in app
             } else {
                 console.log(`enter_main event received with UNDEFINED DATA OR ID from data.`)
@@ -69,6 +75,24 @@ io.on('connection', (socket: Socket) => {
                 socket.join(stringWithSocketRoomPrefix(data.chatroom_id.toString()));
             } else {
                 console.log(`join_chatroom event received with UNDEFINED DATA OR ID from data.`)
+            }
+        });
+
+        socket.on('user_typing', (data) => {
+            if(data != undefined && data.id != undefined && data.chatroom_id != undefined) {
+                socket.to(stringWithSocketRoomPrefix(data.chatroom_id.toString()))
+                    .emit('user_typing', {id: data.id})
+            } else {
+                console.log(`user_typing event received with UNDEFINED DATA OR ID from data.`)
+            }
+        });
+
+        socket.on('user_cease_typing', (data) => {
+            if(data != undefined && data.id != undefined && data.chatroom_id != undefined) {
+                socket.to(stringWithSocketRoomPrefix(data.chatroom_id.toString()))
+                    .emit('user_cease_typing', {id: data.id})
+            } else {
+                console.log(`user_cease_typing event received with UNDEFINED DATA OR ID from data.`)
             }
         });
 
