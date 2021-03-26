@@ -104,7 +104,6 @@ module SocketEventHandler {
         console.log(`disconnected ROOM user tokens: ${rawDisconnectedUsersTokens}`);
         console.log(`disconnected MAIN USER INACTIVE tokens: ${disconnectedInactiveUsersTokens}`);
 
-        // FIXME: Duplicate FCM sending... dumbass
         // FCM Foreground reactivation doesn't exist because apparently Android does *not* suspend network activity
         // for standby? Or it isn't documented. Weird. Just send FCM for push notifications then.
         if(SocketEvents.isPushNotificationEvent(event) && (anyDisconnected || anyInactive)) {
@@ -117,18 +116,21 @@ module SocketEventHandler {
             };
 
             data.roomIds = rooms; // add special roomIds prop
-            if(anyDisconnected) {
-                fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
-                    .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
-            }
-
-            if(SocketEvents.isPushNotificationEvent(event) && anyInactive) {
-                // .filter(
-                //                     (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens))
-                fcm.sendToDevice(disconnectedInactiveUsersTokens,
-                    { data: stringifyObjectProps(data) })
-                    .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, disconnectedInactiveUsersTokens));
-            }
+            // two token arrays should be equivalent - for now, meaning the mapping is useless (FOR NOW), but left for the Future:tm:
+            fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
+                .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
+            // if(anyDisconnected) {
+            //     fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
+            //         .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
+            // }
+            //
+            // if(SocketEvents.isPushNotificationEvent(event) && anyInactive) {
+            //     // .filter(
+            //     //                     (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens))
+            //     fcm.sendToDevice(disconnectedInactiveUsersTokens,
+            //         { data: stringifyObjectProps(data) })
+            //         .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, disconnectedInactiveUsersTokens));
+            // }
         } else {
             onEmission();
         }

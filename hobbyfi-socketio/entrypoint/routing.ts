@@ -80,6 +80,7 @@ io.on('connection', (socket: Socket) => {
 
         socket.on('user_typing', (data) => {
             if(data != undefined && data.id != undefined && data.chatroom_id != undefined) {
+                console.log(`user_typing event received for socket w/ id: ${data.id} and chatroom_id: ${data.chatroom_id}`);
                 socket.to(stringWithSocketRoomPrefix(data.chatroom_id.toString()))
                     .emit('user_typing', {id: data.id})
             } else {
@@ -89,6 +90,7 @@ io.on('connection', (socket: Socket) => {
 
         socket.on('user_cease_typing', (data) => {
             if(data != undefined && data.id != undefined && data.chatroom_id != undefined) {
+                console.log(`user_cease_typing event received for socket w/ id: ${data.id} and chatroom_id: ${data.chatroom_id}`);
                 socket.to(stringWithSocketRoomPrefix(data.chatroom_id.toString()))
                     .emit('user_cease_typing', {id: data.id})
             } else {
@@ -101,6 +103,7 @@ io.on('connection', (socket: Socket) => {
 
             // OPTIMAL PERFORMANCE GO BRRR
             if(roomUser != null) {
+                console.log(`Chatroom socket DISCONNECTED.`);
                 socket.leave(stringWithSocketRoomPrefix(roomUser.roomId.toString()));
             } else {
                 console.log(`Chatroom socket NOT disconnected. SOCKET disconnect MAY BE main socket`);
