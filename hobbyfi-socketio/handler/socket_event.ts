@@ -37,6 +37,7 @@ module SocketEventHandler {
 
     // models get JSON-ified either way; no point in making them separate model classes for now
     // also because it'd be tedious
+    // update: last words said before disaster
 
     function socketInRoom(socket: Socket, roomId: number): boolean {
         return Object.keys(socket.rooms).includes(stringWithSocketRoomPrefix(roomId.toString()))
@@ -74,7 +75,7 @@ module SocketEventHandler {
     }
 
     function emitEventToRoomOnSenderConnection(roomId: number, event: string, message: any, sender?: SocketUser) {
-        console.log(`DATA EMITTING TO ROOM: ${JSON.stringify(classToPlain(message))}`);
+        console.log(`DATA EMITTING TO ROOM WITH ID ${roomId}: ${JSON.stringify(classToPlain(message))}`);
         if(!sender || !sender.socket.connected ||
                 (event == SocketEvents.userLeaveType && message.id != sender?.id) ||
                 (event == SocketEvents.createMessageType && !message.user_sent_id)) {

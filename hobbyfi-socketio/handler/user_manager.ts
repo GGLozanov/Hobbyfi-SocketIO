@@ -11,6 +11,17 @@ export class ExpandedSet<T> extends Set<T> {
         }
         return null;
     }
+    
+    deleteByPredicate(predicate: (value: T) => boolean): T {
+        const entries = Array.from(this.entries())
+        for(const [value] of entries) {
+            if (predicate(value)) {
+                this.delete(value);
+                return value;
+            }
+        }
+        return null;
+    }
 
     includes(value: T): boolean {
         return this.find((val) => val === value) != null;
@@ -68,43 +79,19 @@ class UserManager {
     }
 
     pruneMainUserBySocketId(id: SocketId): IdSocketModel {
-        const pruneUser = this.mainUsers.find(user => user.socket.id === id);
-
-        if (pruneUser != null) {
-            this.mainUsers.delete(pruneUser);
-            return pruneUser;
-        }
-        return null;
+        return this.mainUsers.deleteByPredicate(user => user.socket.id === id);
     }
 
     pruneMainUserById(id: number): IdSocketModel {
-        const pruneUser = this.mainUsers.find(user => user.id === id);
-
-        if (pruneUser != null) {
-            this.mainUsers.delete(pruneUser);
-            return pruneUser;
-        }
-        return null;
+        return this.mainUsers.deleteByPredicate(user => user.id === id);
     }
 
     pruneRoomUserById(id: number): SocketUser {
-        const pruneUser = this.roomUsers.find(user => user.id === id);
-
-        if (pruneUser != null) {
-            this.roomUsers.delete(pruneUser);
-            return pruneUser;
-        }
-        return null;
+        return this.roomUsers.deleteByPredicate(user => user.id === id);
     }
 
     pruneRoomUserBySocketId(id: SocketId): SocketUser {
-        const pruneUser = this.roomUsers.find(user => user.socket.id === id);
-
-        if (pruneUser != null) {
-            this.roomUsers.delete(pruneUser);
-            return pruneUser;
-        }
-        return null;
+        return this.roomUsers.deleteByPredicate(user => user.socket.id === id);
     }
 
     findRoomUser(id: number): SocketUser {
