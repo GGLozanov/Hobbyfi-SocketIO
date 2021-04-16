@@ -209,9 +209,8 @@ module SocketEventHandler {
             }
         });
 
-        // TODO: Change API port & URL schema if hosted! MAY FAIL if NOT consistent!
-        axios.delete('http://' + (process.env.serverHost || fs.readFileSync(__dirname + '/../keys/server_host.txt').toString())
-                + ':8080/Hobbyfi-API/api/v1.0/token/cleanup_failed', {
+        axios.delete((process.env.serverUrl ||
+                fs.readFileSync(__dirname + '/../keys/server_url.txt').toString()) + '/Hobbyfi-API/api/v1.0/token/cleanup_failed', {
             data: qs.stringify({
                 device_tokens: failedTokens
             }),
@@ -297,6 +296,12 @@ module SocketEventHandler {
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.deleteChatroomType,
             plainToClass(Chatroom, deleteBatchPayload, { excludeExtraneousValues: true }), userRequestId, roomId)
 
+    // payload doesn't matter, receiving room matters
+    const onDeleteChatrooms = (deleteBatchPayload: object,
+           roomIdToIdAndDeviceToken: RoomIdToken[], userRequestId: number, roomIds: number[]) =>
+        handleFCMAndEventEmissionForDataToRooms(roomIdToIdAndDeviceToken, SocketEvents.deleteChatroomType,
+            plainToClass(Chatroom, deleteBatchPayload, { excludeExtraneousValues: true }), userRequestId, roomIds);
+
     const socketEventResolutionMap: { [event: string]: any } = {
         [SocketEvents.createMessageType]: onCreateMessage,
         [SocketEvents.editMessageType]: onEditMessage,
@@ -304,7 +309,7 @@ module SocketEventHandler {
         [SocketEvents.userJoinType]: onJoinUser,
         [SocketEvents.userLeaveType]: [onLeaveUser, onLeaveUserKick],
         [SocketEvents.userEditType]: onEditUser,
-        [SocketEvents.deleteChatroomType]: onDeleteChatroom,
+        [SocketEvents.deleteChatroomType]: [onDeleteChatroom, onDeleteChatrooms],
         [SocketEvents.editChatroomType]: onEditChatroom,
         [SocketEvents.eventCreateType]: onCreateEvent,
         [SocketEvents.eventEditType]: onEditEvent,
