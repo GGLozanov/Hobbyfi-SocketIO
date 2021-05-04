@@ -27,6 +27,7 @@ const io: Server = require('socket.io')(http);
 app.use(bodyParser.json()) // for parsing application/json
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(cors());
+app.set('trust proxy', true);
 
 app.all('*', excludeRoutes(['/test'], require_auth));
 
