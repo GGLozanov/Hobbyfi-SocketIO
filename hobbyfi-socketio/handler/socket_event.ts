@@ -57,7 +57,7 @@ module SocketEventHandler {
         if(socketUsersIds.length > 0) {
             return idToDeviceToken.filter((idToken: IdToken) => {
                 console.log(`id token ID: ${idToken.id}`);
-                return socketUsersIds.includes(idToken.id);
+                return !socketUsersIds.includes(idToken.id);
             });
         } else return idToDeviceToken;
     }
