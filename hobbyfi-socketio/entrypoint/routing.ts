@@ -141,6 +141,9 @@ app.post('/receive_server_message', (req: Request, res: Response) => {
         return res.status(400).send('Invalid encoding or missing server message type or missing ID to device token map for FCM!');
     }
 
+    console.log(`ID to device tokens: ` + JSON.stringify(content.id_to_device_token));
+    console.log(`Room ID to ID+device tokens: ` + JSON.stringify(content.room_id_to_id_and_device_token));
+
     if(typeof content.id_to_device_token === 'string' || content.id_to_device_token instanceof String) {
         content.id_to_device_token = JSON.parse(content.id_to_device_token);
     }
