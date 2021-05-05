@@ -117,21 +117,16 @@ module SocketEventHandler {
             };
 
             data.roomIds = rooms; // add special roomIds prop
-            // two token arrays should be equivalent - for now, meaning the mapping is useless (FOR NOW), but left for the Future:tm:
-            fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
-                .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
-            // if(anyDisconnected) {
-            //     fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
-            //         .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
-            // }
-            //
-            // if(SocketEvents.isPushNotificationEvent(event) && anyInactive) {
-            //     // .filter(
-            //     //                     (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens))
-            //     fcm.sendToDevice(disconnectedInactiveUsersTokens,
-            //         { data: stringifyObjectProps(data) })
-            //         .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, disconnectedInactiveUsersTokens));
-            // }
+            if(anyDisconnected) {
+                fcm.sendToDevice(rawDisconnectedUsersTokens, { data: stringifyObjectProps(data) })
+                    .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, rawDisconnectedUsersTokens));
+            }
+
+            if(SocketEvents.isPushNotificationEvent(event) && anyInactive) {
+                fcm.sendToDevice(disconnectedInactiveUsersTokens,
+                    { data: stringifyObjectProps(data) })
+                    .then((r: MessagingDevicesResponse) => onFCMNotificationsSent(r, disconnectedInactiveUsersTokens));
+            }
         } else {
             onEmission();
         }
