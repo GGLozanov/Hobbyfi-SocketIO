@@ -93,11 +93,11 @@ module SocketEventHandler {
         data: any, rooms: number[], onEmission: () => void
     ) {
         // clean up possible duplicates
-        rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens.filter(
-            (rawDisconnectedTokens: string) => disconnectedInactiveUsersTokens.includes(rawDisconnectedTokens)
-        ))];
-        disconnectedInactiveUsersTokens = [...new Set(disconnectedInactiveUsersTokens.filter(
-            (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
+        // rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens.filter(
+        //     (rawDisconnectedTokens: string) => disconnectedInactiveUsersTokens.includes(rawDisconnectedTokens)
+        // ))];
+        // disconnectedInactiveUsersTokens = [...new Set(disconnectedInactiveUsersTokens.filter(
+        //     (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
 
         const anyDisconnected = rawDisconnectedUsersTokens.length > 0;
         const anyInactive = disconnectedInactiveUsersTokens.length > 0;
@@ -140,9 +140,11 @@ module SocketEventHandler {
     // map is number to string array due to users being able to log in through multiple devices
     function handleFCMAndEventEmissionForData(idToDeviceToken: IdToken[], event: string,
                                               data: object, userRequestId: number, roomId: number) {
-        const disconnectedInactiveUsersTokens =  filterUsersDeviceTokensByConnectedSockets(idToDeviceToken, userManager.mainUsers, userManager.roomUsers);
+        const disconnectedInactiveUsersTokens = filterUsersDeviceTokensByConnectedSockets(idToDeviceToken,
+            userManager.mainUsers, userManager.roomUsers);
                 // getInactiveChatroomUsersDeviceTokens(idToDeviceToken, roomId);
-        const rawDisconnectedUsersTokens = filterUsersDeviceTokensByConnectedSockets(idToDeviceToken, userManager.roomUsers, userManager.mainUsers);
+        const rawDisconnectedUsersTokens = filterUsersDeviceTokensByConnectedSockets(idToDeviceToken,
+            userManager.roomUsers, userManager.mainUsers);
         // const disconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
         //     !disconnectedInactiveUsersTokens.includes(token));
         // const filteredInactiveUserTokens = disconnectedInactiveUsersTokens.filter(
