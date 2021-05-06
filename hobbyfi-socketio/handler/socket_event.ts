@@ -63,10 +63,10 @@ module SocketEventHandler {
                 // indexOf and includes were bitches
                 for(let i: number = 0; i < socketUsersIds.length; i++) {
                     if(socketUsersIds[i] == idToken.id) {
-                        return false;
+                        return true;
                     }
                 }
-                return true;
+                return false;
             });
         }
 
