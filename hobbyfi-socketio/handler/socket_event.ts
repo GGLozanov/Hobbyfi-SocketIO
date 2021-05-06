@@ -63,10 +63,10 @@ module SocketEventHandler {
                 // indexOf and includes were bitches
                 for(let i: number = 0; i < socketUsersIds.length; i++) {
                     if(socketUsersIds[i] == idToken.id) {
-                        return true;
+                        return false;
                     }
                 }
-                return false;
+                return true;
             });
         }
 
@@ -103,7 +103,7 @@ module SocketEventHandler {
         data: any, rooms: number[], onEmission: () => void
     ) {
         rawDisconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
-            disconnectedInactiveUsersTokens.includes(token));
+            !disconnectedInactiveUsersTokens.includes(token));
         disconnectedInactiveUsersTokens = disconnectedInactiveUsersTokens.filter(
             (disconnInactiveTokens) => !rawDisconnectedUsersTokens.includes(disconnInactiveTokens));
         // room tokens take precedence over inactive => exclude any that match w/ rawDisconnectedUsersTokens
