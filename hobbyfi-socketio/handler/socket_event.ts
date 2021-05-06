@@ -56,7 +56,7 @@ module SocketEventHandler {
     function getUsersDeviceTokens(socketUsersIds: number[], idToDeviceToken: IdToken[]) {
         if(socketUsersIds.length > 0) {
             return idToDeviceToken.filter((idToken: IdToken) => {
-		        console.log(`sockets UIDs: ${socketUserIds}`);
+		        console.log(`sockets UIDs: ${socketUsersIds}`);
                 console.log(`id token ID: ${idToken.id}`);
                 console.log(`Incl: ${socketUsersIds.indexOf(idToken.id)}`);
                 return socketUsersIds.indexOf(idToken.id) == -1;
