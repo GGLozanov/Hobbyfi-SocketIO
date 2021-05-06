@@ -59,17 +59,25 @@ module SocketEventHandler {
 		        console.log(`sockets UIDs: ${socketUsersIds}`);
                 console.log(`id token ID: ${idToken.id}`);
                 console.log(`Incl: ${socketUsersIds.indexOf(idToken.id)}`);
-                return socketUsersIds.indexOf(idToken.id) == -1;
+
+                // indexOf and includes were bitches
+                for(let i: number = 0; i < socketUsersIds.length; i++) {
+                    if(socketUsersIds[i] == idToken.id) {
+                        return false;
+                    }
+                }
+                return true;
             });
-        } else return idToDeviceToken;
+        }
+
+        return idToDeviceToken;
     }
 
     function filterUsersDeviceTokensByConnectedSockets(idToDeviceToken: IdToken[],
                                                        sourceSet: ExpandedSet<IdSocketModel>,
                                                        oppositeSet: ExpandedSet<IdSocketModel>): string[] {
-        const socketUserIdsChatroom: number[] = [...sourceSet
-            .filter((user: IdSocketModel) => !oppositeSet.includes(user))
-            .map((user: IdSocketModel) => user.id)];
+        const socketUserIdsChatroom: number[] = [...sourceSet].filter((user: IdSocketModel) => !oppositeSet.includes(user))
+            .map((user: IdSocketModel) => user.id);
         console.log(socketUserIdsChatroom);
 
         return flatten(getUsersDeviceTokens(socketUserIdsChatroom, idToDeviceToken)
