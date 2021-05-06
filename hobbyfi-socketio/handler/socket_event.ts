@@ -58,7 +58,7 @@ module SocketEventHandler {
             return idToDeviceToken.filter((idToken: IdToken) => {
                 console.log(`id token ID: ${idToken.id}`);
                 console.log(`Incl: ${socketUsersIds.indexOf(idToken.id)}`);
-                return socketUsersIds.indexOf(idToken.id) == -1;
+                return socketUsersIds.indexOf(idToken.id) > -1;
             });
         } else return idToDeviceToken;
     }
@@ -94,11 +94,11 @@ module SocketEventHandler {
         data: any, rooms: number[], onEmission: () => void
     ) {
         // clean up possible duplicates
-        rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens.filter(
-            (rawDisconnectedTokens: string) => disconnectedInactiveUsersTokens.includes(rawDisconnectedTokens)
-        ))];
-        disconnectedInactiveUsersTokens = [...new Set(disconnectedInactiveUsersTokens.filter(
-            (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
+        // rawDisconnectedUsersTokens = [...new Set(rawDisconnectedUsersTokens.filter(
+        //     (rawDisconnectedTokens: string) => disconnectedInactiveUsersTokens.includes(rawDisconnectedTokens)
+        // ))];
+        // disconnectedInactiveUsersTokens = [...new Set(disconnectedInactiveUsersTokens.filter(
+        //     (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens)))];
 
         const anyDisconnected = rawDisconnectedUsersTokens.length > 0;
         const anyInactive = disconnectedInactiveUsersTokens.length > 0;
