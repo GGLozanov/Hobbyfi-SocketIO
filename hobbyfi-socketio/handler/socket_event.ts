@@ -65,11 +65,11 @@ module SocketEventHandler {
     }
 
     function filterUsersDeviceTokensByConnectedSockets(idToDeviceToken: IdToken[],
-                                                       sourceArray: ExpandedSet<IdSocketModel>,
-                                                       oppositeArray: ExpandedSet<IdSocketModel>): string[] {
-        const socketUserIdsChatroom: number[] = Array.from(sourceArray
-            .filter((user: IdSocketModel) => !oppositeArray.includes(user))
-            .map((user: IdSocketModel) => user.id).keys());
+                                                       sourceSet: ExpandedSet<IdSocketModel>,
+                                                       oppositeSet: ExpandedSet<IdSocketModel>): string[] {
+        const socketUserIdsChatroom: number[] = [...sourceSet
+            .filter((user: IdSocketModel) => !oppositeSet.includes(user))
+            .map((user: IdSocketModel) => user.id)];
         console.log(socketUserIdsChatroom);
 
         return flatten(getUsersDeviceTokens(socketUserIdsChatroom, idToDeviceToken)
@@ -95,9 +95,9 @@ module SocketEventHandler {
         data: any, rooms: number[], onEmission: () => void
     ) {
         rawDisconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
-            !disconnectedInactiveUsersTokens.includes(token));
+            disconnectedInactiveUsersTokens.includes(token));
         disconnectedInactiveUsersTokens = disconnectedInactiveUsersTokens.filter(
-            (disconnInactiveTokens) => rawDisconnectedUsersTokens.includes(disconnInactiveTokens));
+            (disconnInactiveTokens) => !rawDisconnectedUsersTokens.includes(disconnInactiveTokens));
         // room tokens take precedence over inactive => exclude any that match w/ rawDisconnectedUsersTokens
 
         const anyDisconnected = rawDisconnectedUsersTokens.length > 0;
