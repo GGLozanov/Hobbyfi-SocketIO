@@ -102,11 +102,13 @@ module SocketEventHandler {
         event: string,
         data: any, rooms: number[], onEmission: () => void
     ) {
-        rawDisconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
-            !disconnectedInactiveUsersTokens.includes(token));
-        disconnectedInactiveUsersTokens = disconnectedInactiveUsersTokens.filter(
+        const filteredRawDisconnectedUsersTokens = rawDisconnectedUsersTokens.filter((token) =>
+            disconnectedInactiveUsersTokens.includes(token));
+        const filteredDisconnectedInactiveUsersTokens = disconnectedInactiveUsersTokens.filter(
             (disconnInactiveTokens) => !rawDisconnectedUsersTokens.includes(disconnInactiveTokens));
         // room tokens take precedence over inactive => exclude any that match w/ rawDisconnectedUsersTokens
+        rawDisconnectedUsersTokens = filteredDisconnectedInactiveUsersTokens;
+        disconnectedInactiveUsersTokens = filteredDisconnectedInactiveUsersTokens;
 
         const anyDisconnected = rawDisconnectedUsersTokens.length > 0;
         const anyInactive = disconnectedInactiveUsersTokens.length > 0;
