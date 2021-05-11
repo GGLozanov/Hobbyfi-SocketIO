@@ -18,7 +18,7 @@ export default (req: Request, res: Response, next: () => void) => {
             fs.readFileSync(__dirname + '/../keys/public.pem').toString(), { algorithms: ['RS256'] });
 
         if(!payload || !payload.userId ||
-                (process.env.serverHost || fs.readFileSync(__dirname + '/../keys/server_host.txt').toString()) != payload.iss) {
+                (process.env.serverIp || fs.readFileSync(__dirname + '/../keys/server_ip.txt').toString()) != payload.iss) {
             return res.status(406).send('Invalid JWT token payload sent in Authorization header! May not have originated from server!');
         }
 
