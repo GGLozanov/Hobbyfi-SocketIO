@@ -10,7 +10,9 @@ module Models {
         @Expose()
         date?: string;
 
+        @Expose({ name: 'latitude' })
         lat?: number;
+        @Expose({ name: 'longitude' })
         long?: number;
 
         @Expose({ name: 'chatroom_id' })

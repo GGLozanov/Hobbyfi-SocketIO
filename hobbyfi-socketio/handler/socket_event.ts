@@ -17,6 +17,7 @@ import Chatroom from "../model/chatroom";
 import {Socket} from "socket.io";
 import IdSocketModel from "../model/id_socket_model";
 import {AxiosError, AxiosResponse} from "axios";
+import EventDeleteBatch from "../model/event_delete_batch";
 
 const stringWithSocketRoomPrefix = require('../utils/converters');
 const fcm = require('../config/firebase_config');
@@ -284,7 +285,7 @@ module SocketEventHandler {
     const onDeleteEventBatch = (deleteBatchPayload: object, idToDeviceToken: IdToken[],
                                 userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.eventDeleteBatchType,
-            plainToClass(IdTypeModel, deleteBatchPayload, { excludeExtraneousValues: true }), userRequestId, roomId);
+            plainToClass(EventDeleteBatch, deleteBatchPayload, { excludeExtraneousValues: true }), userRequestId, roomId);
 
     const onEditEvent = (editFields: object, idToDeviceToken: IdToken[], userRequestId: number, roomId: number) =>
         handleFCMAndEventEmissionForData(idToDeviceToken, SocketEvents.eventEditType,
